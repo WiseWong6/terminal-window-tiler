@@ -4,12 +4,58 @@
 # Per-screen independent layout with fixed policy for 2..10 windows.
 # Optional env vars: TILE_GAP, TILE_MARGIN_TOP, TILE_MARGIN_RIGHT, TILE_MARGIN_BOTTOM, TILE_MARGIN_LEFT
 
+bootstrap_hotkey_once() {
+  if [[ "${TILE_SKIP_HOTKEY_BOOTSTRAP:-0}" == "1" ]]; then
+    return
+  fi
+
+  local conf_dir="$HOME/.config/terminal-window-tiler"
+  local sentinel="${conf_dir}/hotkey-bootstrap-v1"
+  if [[ -f "$sentinel" ]]; then
+    return
+  fi
+
+  local hotkey_cmd=""
+  hotkey_cmd="$(command -v terminal-tile-hotkey 2>/dev/null || true)"
+  if [[ -z "$hotkey_cmd" ]]; then
+    local script_dir="${0:A:h}"
+    if [[ ! -x "$script_dir/terminal-tile-hotkey" ]]; then
+      local x_file="${(%):-%x}"
+      script_dir="${x_file:A:h}"
+    fi
+    if [[ -x "$script_dir/terminal-tile-hotkey" ]]; then
+      hotkey_cmd="$script_dir/terminal-tile-hotkey"
+    fi
+  fi
+
+  if [[ -z "$hotkey_cmd" ]]; then
+    return
+  fi
+
+  "$hotkey_cmd" bootstrap
+  local bootstrap_code=$?
+  if (( bootstrap_code == 0 )); then
+    mkdir -p "$conf_dir"
+    : > "$sentinel"
+  else
+    echo "快捷键自动初始化失败（分屏将继续执行）。"
+  fi
+}
+
+bootstrap_hotkey_once
+
 GAP=${TILE_GAP:-10}
 M_TOP=${TILE_MARGIN_TOP:-6}
 M_RIGHT=${TILE_MARGIN_RIGHT:-8}
 M_BOTTOM=${TILE_MARGIN_BOTTOM:-8}
 M_LEFT=${TILE_MARGIN_LEFT:-8}
 DEBUG_MODE=${TILE_DEBUG:-0}
+
+# Avoid expensive System Events calls when Ghostty is not running.
+CHECK_GHOSTTY=0
+if pgrep -x Ghostty >/dev/null 2>&1 || pgrep -x ghostty >/dev/null 2>&1; then
+  CHECK_GHOSTTY=1
+fi
 
 result=$(osascript <<APPLESCRIPT
 use framework "AppKit"
@@ -98,6 +144,7 @@ set mRight to ${M_RIGHT}
 set mBottom to ${M_BOTTOM}
 set mLeft to ${M_LEFT}
 set debugMode to "${DEBUG_MODE}"
+set checkGhostty to ${CHECK_GHOSTTY}
 
 set ghosttyRunning to false
 set ghosttyNeedsAX to false
@@ -140,16 +187,18 @@ try
 end try
 
 -- Ghostty windows (System Events / Accessibility)
-try
-  tell application "System Events"
-    set ghosttyUpperExists to (exists process "Ghostty")
-    set ghosttyLowerExists to (exists process "ghostty")
-    if ghosttyUpperExists or ghosttyLowerExists then set ghosttyRunning to true
-  end tell
-on error
-  set ghosttyRunning to false
-  set ghosttyNeedsAX to true
-end try
+if checkGhostty is 1 then
+  try
+    tell application "System Events"
+      set ghosttyUpperExists to (exists process "Ghostty")
+      set ghosttyLowerExists to (exists process "ghostty")
+      if ghosttyUpperExists or ghosttyLowerExists then set ghosttyRunning to true
+    end tell
+  on error
+    set ghosttyRunning to false
+    set ghosttyNeedsAX to true
+  end try
+end if
 
 if ghosttyRunning then
   try
