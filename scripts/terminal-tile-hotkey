@@ -1,0 +1,831 @@
+#!/bin/zsh
+
+# Manage macOS Services hotkey bootstrap for terminal-window-tiler.
+# Commands:
+#   bootstrap           Install service/runner and bind default hotkey on first run
+#   set <combo>         Set or change hotkey (e.g. cmd+shift+t)
+#   status              Show install status and current key binding
+#   uninstall           Remove managed service/runner and status entry
+
+set -u
+setopt typesetsilent
+
+APP_MARKER="managed-by=terminal-window-tiler"
+APP_NAME="terminal-window-tiler"
+SERVICE_DISPLAY_NAME="Terminal Tile"
+SERVICE_KEY="(null) - ${SERVICE_DISPLAY_NAME} - runWorkflowAsService"
+DEFAULT_COMBO="ctrl+opt+t"
+DEFAULT_KEY_EQ="^~t"
+
+TILE_HOME="${TILE_HOTKEY_HOME:-$HOME}"
+CONFIG_DIR="${TILE_HOME}/.config/${APP_NAME}"
+SENTINEL_PATH="${CONFIG_DIR}/hotkey-bootstrap-v1"
+
+BIN_DIR="${TILE_HOME}/.local/bin"
+RUNNER_PATH="${BIN_DIR}/terminal-tile-hotkey-run"
+RUNNER_MARKER="# ${APP_MARKER}"
+
+SERVICES_DIR="${TILE_HOME}/Library/Services"
+WORKFLOW_NAME="${SERVICE_DISPLAY_NAME}.workflow"
+WORKFLOW_PATH="${SERVICES_DIR}/${WORKFLOW_NAME}"
+WORKFLOW_MARKER_PATH="${WORKFLOW_PATH}/Contents/Resources/${APP_NAME}.marker"
+
+PREFERENCES_DIR="${TILE_HOME}/Library/Preferences"
+PBS_PLIST="${TILE_HOTKEY_PBS_PLIST:-${PREFERENCES_DIR}/pbs.plist}"
+PLIST_BUDDY="/usr/libexec/PlistBuddy"
+PBS_BIN="/System/Library/CoreServices/pbs"
+
+SCRIPT_DIR="${0:A:h}"
+REPO_ROOT="${SCRIPT_DIR:h}"
+WORKFLOW_TEMPLATE_PATH="${REPO_ROOT}/assets/automator/${WORKFLOW_NAME}"
+RUNNER_TEMPLATE_PATH="${REPO_ROOT}/assets/automator/terminal-tile-hotkey-run.template.sh"
+TERMINAL_APP_BUNDLES=(
+  "com.googlecode.iterm2"
+  "com.apple.Terminal"
+  "com.mitchellh.ghostty"
+)
+
+usage() {
+  cat <<'EOF'
+Usage:
+  terminal-tile-hotkey bootstrap
+  terminal-tile-hotkey set <combo>
+  terminal-tile-hotkey status
+  terminal-tile-hotkey uninstall
+
+Hotkey combo format:
+  cmd|command, shift, opt|option|alt, ctrl|control + single letter (a-z)
+Examples:
+  terminal-tile-hotkey set cmd+shift+t
+  terminal-tile-hotkey set ctrl+opt+t
+EOF
+}
+
+is_macos() {
+  [[ "$(uname -s)" == "Darwin" ]]
+}
+
+ensure_dir() {
+  mkdir -p "$1"
+}
+
+ensure_pbs_plist() {
+  ensure_dir "$PREFERENCES_DIR"
+  if [[ ! -f "$PBS_PLIST" ]]; then
+    cat > "$PBS_PLIST" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>
+EOF
+  fi
+
+  "$PLIST_BUDDY" -c "Print NSServicesStatus" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add NSServicesStatus dict" "$PBS_PLIST" >/dev/null 2>&1
+}
+
+refresh_services() {
+  if [[ -x "$PBS_BIN" ]]; then
+    "$PBS_BIN" >/dev/null 2>&1 || true
+    "$PBS_BIN" -update >/dev/null 2>&1 || true
+  fi
+}
+
+workflow_is_managed() {
+  [[ -f "$WORKFLOW_MARKER_PATH" ]] && grep -q "$APP_MARKER" "$WORKFLOW_MARKER_PATH" 2>/dev/null
+}
+
+runner_is_managed() {
+  [[ -f "$RUNNER_PATH" ]] && grep -q "$APP_MARKER" "$RUNNER_PATH" 2>/dev/null
+}
+
+create_workflow_bundle_fallback() {
+  ensure_dir "${WORKFLOW_PATH}/Contents/Resources"
+
+  cat > "${WORKFLOW_PATH}/Contents/Info.plist" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSServices</key>
+  <array>
+    <dict>
+      <key>NSBackgroundColorName</key>
+      <string>background</string>
+      <key>NSIconName</key>
+      <string>NSActionTemplate</string>
+      <key>NSMenuItem</key>
+      <dict>
+        <key>default</key>
+        <string>Terminal Tile</string>
+      </dict>
+      <key>NSMessage</key>
+      <string>runWorkflowAsService</string>
+    </dict>
+  </array>
+</dict>
+</plist>
+EOF
+
+  cat > "${WORKFLOW_PATH}/Contents/document.wflow" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>AMApplicationBuild</key>
+  <string>523</string>
+  <key>AMApplicationVersion</key>
+  <string>2.10</string>
+  <key>AMDocumentVersion</key>
+  <string>2</string>
+  <key>actions</key>
+  <array>
+    <dict>
+      <key>action</key>
+      <dict>
+        <key>AMAccepts</key>
+        <dict>
+          <key>Container</key>
+          <string>List</string>
+          <key>Optional</key>
+          <true/>
+          <key>Types</key>
+          <array>
+            <string>com.apple.cocoa.string</string>
+          </array>
+        </dict>
+        <key>AMActionVersion</key>
+        <string>2.0.3</string>
+        <key>AMApplication</key>
+        <array>
+          <string>Automator</string>
+        </array>
+        <key>AMProvides</key>
+        <dict>
+          <key>Container</key>
+          <string>List</string>
+          <key>Types</key>
+          <array>
+            <string>com.apple.cocoa.string</string>
+          </array>
+        </dict>
+        <key>ActionBundlePath</key>
+        <string>/System/Library/Automator/Run Shell Script.action</string>
+        <key>ActionName</key>
+        <string>Run Shell Script</string>
+        <key>ActionParameters</key>
+        <dict>
+          <key>COMMAND_STRING</key>
+          <string>"$HOME/.local/bin/terminal-tile-hotkey-run"</string>
+          <key>CheckedForUserDefaultShell</key>
+          <true/>
+          <key>inputMethod</key>
+          <integer>0</integer>
+          <key>shell</key>
+          <string>/bin/zsh</string>
+          <key>source</key>
+          <string></string>
+        </dict>
+        <key>BundleIdentifier</key>
+        <string>com.apple.RunShellScript</string>
+        <key>CFBundleVersion</key>
+        <string>2.0.3</string>
+      </dict>
+      <key>isViewVisible</key>
+      <integer>1</integer>
+    </dict>
+  </array>
+  <key>connectors</key>
+  <dict/>
+  <key>workflowMetaData</key>
+  <dict>
+    <key>inputTypeIdentifier</key>
+    <string>com.apple.Automator.nothing</string>
+    <key>outputTypeIdentifier</key>
+    <string>com.apple.Automator.nothing</string>
+    <key>presentationMode</key>
+    <integer>15</integer>
+    <key>processesInput</key>
+    <false/>
+    <key>serviceInputTypeIdentifier</key>
+    <string>com.apple.Automator.nothing</string>
+    <key>serviceOutputTypeIdentifier</key>
+    <string>com.apple.Automator.nothing</string>
+    <key>serviceProcessesInput</key>
+    <false/>
+    <key>systemImageName</key>
+    <string>NSActionTemplate</string>
+    <key>useAutomaticInputType</key>
+    <true/>
+    <key>workflowTypeIdentifier</key>
+    <string>com.apple.Automator.servicesMenu</string>
+  </dict>
+</dict>
+</plist>
+EOF
+}
+
+install_workflow() {
+  local force="${1:-0}"
+  ensure_dir "$SERVICES_DIR"
+
+  if [[ -d "$WORKFLOW_PATH" ]] && ! workflow_is_managed; then
+    if [[ "$force" == "1" ]]; then
+      rm -rf "$WORKFLOW_PATH"
+    else
+      echo "SKIP:found-unmanaged-workflow:${WORKFLOW_PATH}"
+      return 2
+    fi
+  fi
+
+  rm -rf "$WORKFLOW_PATH"
+
+  if [[ -d "$WORKFLOW_TEMPLATE_PATH" ]]; then
+    cp -R "$WORKFLOW_TEMPLATE_PATH" "$WORKFLOW_PATH"
+  else
+    create_workflow_bundle_fallback
+  fi
+
+  ensure_dir "${WORKFLOW_PATH}/Contents/Resources"
+  printf '%s\n' "$APP_MARKER" > "$WORKFLOW_MARKER_PATH"
+  return 0
+}
+
+create_runner_fallback() {
+  cat > "$RUNNER_PATH" <<'EOF'
+#!/bin/zsh
+# managed-by=terminal-window-tiler
+
+set -u
+
+# Use frontmost app lookup that does not require System Events automation permission.
+front_bundle_id="$(osascript -e 'id of app (path to frontmost application as text)' 2>/dev/null || true)"
+
+case "$front_bundle_id" in
+  com.googlecode.iterm2|com.apple.Terminal|com.mitchellh.ghostty)
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+
+if command -v terminal-tile-all >/dev/null 2>&1; then
+  TILE_SKIP_HOTKEY_BOOTSTRAP=1 exec "$(command -v terminal-tile-all)"
+fi
+
+if [[ -x "$HOME/.local/bin/terminal-tile-all" ]]; then
+  TILE_SKIP_HOTKEY_BOOTSTRAP=1 exec "$HOME/.local/bin/terminal-tile-all"
+fi
+
+echo "terminal-tile-all 未找到，请先安装到 ~/.local/bin/terminal-tile-all。" >&2
+exit 1
+EOF
+}
+
+install_runner() {
+  local force="${1:-0}"
+  ensure_dir "$BIN_DIR"
+
+  if [[ -f "$RUNNER_PATH" ]] && ! runner_is_managed; then
+    if [[ "$force" == "1" ]]; then
+      rm -f "$RUNNER_PATH"
+    else
+      echo "SKIP:found-unmanaged-runner:${RUNNER_PATH}"
+      return 2
+    fi
+  fi
+
+  if [[ -f "$RUNNER_TEMPLATE_PATH" ]]; then
+    cp "$RUNNER_TEMPLATE_PATH" "$RUNNER_PATH"
+  else
+    create_runner_fallback
+  fi
+
+  chmod +x "$RUNNER_PATH"
+  return 0
+}
+
+combo_to_key_equivalent() {
+  local combo="$1"
+  local raw="${combo:l}"
+  raw="${raw//[[:space:]]/}"
+
+  if [[ -z "$raw" ]]; then
+    return 1
+  fi
+
+  local -a parts
+  parts=("${(@s:+:)raw}")
+
+  local has_cmd=0
+  local has_shift=0
+  local has_opt=0
+  local has_ctrl=0
+  local key=""
+
+  local p
+  for p in "${parts[@]}"; do
+    case "$p" in
+      cmd|command)
+        (( has_cmd == 0 )) || return 1
+        has_cmd=1
+        ;;
+      shift)
+        (( has_shift == 0 )) || return 1
+        has_shift=1
+        ;;
+      opt|option|alt)
+        (( has_opt == 0 )) || return 1
+        has_opt=1
+        ;;
+      ctrl|control)
+        (( has_ctrl == 0 )) || return 1
+        has_ctrl=1
+        ;;
+      [a-z])
+        [[ -z "$key" ]] || return 1
+        key="$p"
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  done
+
+  [[ -n "$key" ]] || return 1
+  (( has_cmd || has_shift || has_opt || has_ctrl )) || return 1
+
+  local mods=""
+  if (( has_cmd )); then
+    mods="@"
+    (( has_shift )) && mods="${mods}$"
+    (( has_opt )) && mods="${mods}~"
+    (( has_ctrl )) && mods="${mods}^"
+  else
+    (( has_ctrl )) && mods="${mods}^"
+    (( has_opt )) && mods="${mods}~"
+    (( has_shift )) && mods="${mods}$"
+  fi
+
+  local display_key="$key"
+  (( has_shift )) && display_key="${(U)display_key}"
+
+  local -a canonical_mods
+  (( has_cmd )) && canonical_mods+=("cmd")
+  (( has_shift )) && canonical_mods+=("shift")
+  (( has_ctrl )) && canonical_mods+=("ctrl")
+  (( has_opt )) && canonical_mods+=("opt")
+
+  local canonical="${(j:+:)canonical_mods}+$key"
+  local keyeq="${mods}${display_key}"
+  printf '%s|%s\n' "$canonical" "$keyeq"
+}
+
+key_equivalent_to_combo() {
+  local keyeq="$1"
+  [[ -n "$keyeq" ]] || return 1
+
+  local key="${keyeq[-1]}"
+  local mods="${keyeq[1,-2]}"
+
+  local has_cmd=0
+  local has_shift=0
+  local has_opt=0
+  local has_ctrl=0
+
+  local i char
+  for (( i = 1; i <= ${#mods}; i++ )); do
+    char="${mods[$i]}"
+    case "$char" in
+      "@") has_cmd=1 ;;
+      "$") has_shift=1 ;;
+      "~") has_opt=1 ;;
+      "^") has_ctrl=1 ;;
+    esac
+  done
+
+  local -a out
+  (( has_cmd )) && out+=("cmd")
+  (( has_shift )) && out+=("shift")
+  (( has_ctrl )) && out+=("ctrl")
+  (( has_opt )) && out+=("opt")
+
+  local lower_key="${key:l}"
+  out+=("$lower_key")
+  printf '%s\n' "${(j:+:)out}"
+}
+
+key_equivalent_to_nsuikey() {
+  local keyeq="$1"
+  [[ -n "$keyeq" ]] || return 1
+
+  local mods="${keyeq[1,-2]}"
+  local key="${keyeq[-1]:l}"
+  printf '%s%s\n' "$mods" "$key"
+}
+
+sync_terminal_app_shortcuts() {
+  local keyeq="$1"
+  local nsui_key
+  nsui_key="$(key_equivalent_to_nsuikey "$keyeq" 2>/dev/null || true)"
+  [[ -n "$nsui_key" ]] || return 0
+
+  local bundle
+  for bundle in "${TERMINAL_APP_BUNDLES[@]}"; do
+    defaults write "$bundle" NSUserKeyEquivalents -dict-add "$SERVICE_DISPLAY_NAME" "$nsui_key" >/dev/null 2>&1 || true
+  done
+}
+
+list_service_keys_with_equivalent() {
+  local target="$1"
+
+  "$PLIST_BUDDY" -c "Print NSServicesStatus" "$PBS_PLIST" 2>/dev/null | \
+    awk -v target="$target" '
+      /^[[:space:]]*.+ = Dict \{$/ {
+        key=$0
+        sub(/^[[:space:]]*/, "", key)
+        sub(/ = Dict \{$/, "", key)
+        next
+      }
+      /key_equivalent = / {
+        value=$0
+        sub(/^.*key_equivalent = /, "", value)
+        if (value == target) print key
+      }
+    '
+}
+
+collect_conflicts() {
+  local keyeq="$1"
+  local -a collisions=()
+  local service_key
+  while IFS= read -r service_key; do
+    [[ -z "$service_key" ]] && continue
+    [[ "$service_key" == "$SERVICE_KEY" ]] && continue
+    collisions+=("$service_key")
+  done < <(list_service_keys_with_equivalent "$keyeq")
+
+  printf '%s\n' "${collisions[@]}"
+}
+
+set_service_key_equivalent() {
+  local keyeq="$1"
+  ensure_pbs_plist
+
+  "$PLIST_BUDDY" -c "Print 'NSServicesStatus:${SERVICE_KEY}'" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}' dict" "$PBS_PLIST" >/dev/null 2>&1
+
+  "$PLIST_BUDDY" -c "Delete 'NSServicesStatus:${SERVICE_KEY}:key_equivalent'" "$PBS_PLIST" >/dev/null 2>&1 || true
+  "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}:key_equivalent' string ${keyeq}" "$PBS_PLIST" >/dev/null 2>&1
+
+  # Keep the service enabled in Services menu/context for reliable hotkey dispatch.
+  "$PLIST_BUDDY" -c "Print 'NSServicesStatus:${SERVICE_KEY}:presentation_modes'" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}:presentation_modes' dict" "$PBS_PLIST" >/dev/null 2>&1
+  "$PLIST_BUDDY" -c "Set 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:ServicesMenu' true" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:ServicesMenu' bool true" "$PBS_PLIST" >/dev/null 2>&1
+  "$PLIST_BUDDY" -c "Set 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:ContextMenu' true" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:ContextMenu' bool true" "$PBS_PLIST" >/dev/null 2>&1
+  "$PLIST_BUDDY" -c "Set 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:TouchBar' true" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'NSServicesStatus:${SERVICE_KEY}:presentation_modes:TouchBar' bool true" "$PBS_PLIST" >/dev/null 2>&1
+
+  # Required on some macOS setups; when false, Services hotkeys may not fire.
+  "$PLIST_BUDDY" -c "Set 'ServicesShortcutsPresent' true" "$PBS_PLIST" >/dev/null 2>&1 || \
+    "$PLIST_BUDDY" -c "Add 'ServicesShortcutsPresent' bool true" "$PBS_PLIST" >/dev/null 2>&1
+}
+
+read_service_key_equivalent() {
+  ensure_pbs_plist
+  "$PLIST_BUDDY" -c "Print 'NSServicesStatus:${SERVICE_KEY}:key_equivalent'" "$PBS_PLIST" 2>/dev/null || true
+}
+
+remove_service_status() {
+  ensure_pbs_plist
+  "$PLIST_BUDDY" -c "Delete 'NSServicesStatus:${SERVICE_KEY}'" "$PBS_PLIST" >/dev/null 2>&1 || true
+}
+
+prompt_for_custom_combo() {
+  while true; do
+    printf "默认快捷键 %s 已冲突，请输入新的快捷键组合（例如 cmd+opt+t），或输入 skip 跳过： " "$DEFAULT_COMBO" >&2
+    if ! read -r input_combo; then
+      echo "SKIP"
+      return 0
+    fi
+
+    if [[ "${input_combo:l}" == "skip" ]]; then
+      echo "SKIP"
+      return 0
+    fi
+
+    local parsed canonical keyeq
+    parsed="$(combo_to_key_equivalent "$input_combo" 2>/dev/null || true)"
+    if [[ -z "$parsed" ]]; then
+      echo "格式无效。仅支持 cmd|shift|opt|ctrl + 单字母（a-z），例如 cmd+shift+t。" >&2
+      continue
+    fi
+
+    canonical="${parsed%%|*}"
+    keyeq="${parsed##*|}"
+
+    local -a conflicts
+    conflicts=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && conflicts+=("$line")
+    done < <(collect_conflicts "$keyeq")
+
+    if (( ${#conflicts[@]} > 0 )); then
+      echo "该快捷键已被其他 Service 占用：" >&2
+      local c
+      for c in "${conflicts[@]}"; do
+        echo "- $c" >&2
+      done
+      continue
+    fi
+
+    echo "${canonical}|${keyeq}"
+    return 0
+  done
+}
+
+ensure_install_prerequisites() {
+  local force="${1:-0}"
+
+  install_runner "$force" >/dev/null
+  local runner_code=$?
+
+  install_workflow "$force" >/dev/null
+  local workflow_code=$?
+
+  if (( runner_code == 2 )); then
+    echo "快捷键初始化跳过：检测到未托管的 runner 文件 (${RUNNER_PATH})。"
+    return 2
+  fi
+
+  if (( workflow_code == 2 )); then
+    echo "快捷键初始化跳过：检测到未托管的 Service (${WORKFLOW_PATH})。"
+    return 2
+  fi
+
+  if (( runner_code != 0 || workflow_code != 0 )); then
+    echo "快捷键初始化失败：安装 Service 或 runner 时出错。"
+    return 1
+  fi
+
+  return 0
+}
+
+cmd_bootstrap() {
+  if ! is_macos; then
+    echo "快捷键初始化失败：仅支持 macOS。"
+    return 1
+  fi
+
+  ensure_install_prerequisites 0
+  local prep_code=$?
+  if (( prep_code == 2 )); then
+    return 0
+  fi
+  if (( prep_code != 0 )); then
+    return 1
+  fi
+
+  refresh_services
+
+  local current_eq current_combo
+  current_eq="$(read_service_key_equivalent)"
+  if [[ -n "$current_eq" ]]; then
+    set_service_key_equivalent "$current_eq"
+    refresh_services
+    current_combo="$(key_equivalent_to_combo "$current_eq" 2>/dev/null || true)"
+    if [[ -n "$current_combo" ]]; then
+      echo "快捷键已就绪（${current_combo}）。"
+    else
+      echo "快捷键已就绪（key_equivalent=${current_eq}）。"
+    fi
+    return 0
+  fi
+
+  local -a default_conflicts
+  default_conflicts=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && default_conflicts+=("$line")
+  done < <(collect_conflicts "$DEFAULT_KEY_EQ")
+
+  local chosen_combo="$DEFAULT_COMBO"
+  local chosen_eq="$DEFAULT_KEY_EQ"
+
+  if (( ${#default_conflicts[@]} > 0 )); then
+    if [[ -t 0 && -t 1 ]]; then
+      local prompt_output
+      prompt_output="$(prompt_for_custom_combo)"
+      if [[ "$prompt_output" == "SKIP" ]]; then
+        echo "快捷键服务已安装，未绑定按键。可手动执行：terminal-tile-hotkey set cmd+shift+t"
+        return 0
+      fi
+      chosen_combo="${prompt_output%%|*}"
+      chosen_eq="${prompt_output##*|}"
+    else
+      echo "快捷键服务已安装，但默认键冲突且当前为非交互终端，已跳过绑定。"
+      return 0
+    fi
+  fi
+
+  set_service_key_equivalent "$chosen_eq"
+  sync_terminal_app_shortcuts "$chosen_eq"
+  refresh_services
+
+  echo "快捷键已就绪（${chosen_combo}）。"
+  return 0
+}
+
+cmd_set() {
+  if ! is_macos; then
+    echo "仅支持 macOS。"
+    return 1
+  fi
+
+  if [[ $# -ne 1 ]]; then
+    usage
+    return 1
+  fi
+
+  local parsed combo keyeq
+  parsed="$(combo_to_key_equivalent "$1" 2>/dev/null || true)"
+  if [[ -z "$parsed" ]]; then
+    echo "快捷键格式无效：$1"
+    echo "示例：cmd+shift+t / ctrl+opt+t"
+    return 1
+  fi
+  combo="${parsed%%|*}"
+  keyeq="${parsed##*|}"
+
+  ensure_install_prerequisites 0
+  local prep_code=$?
+  if (( prep_code == 2 )); then
+    return 1
+  fi
+  if (( prep_code != 0 )); then
+    return 1
+  fi
+
+  local -a conflicts
+  conflicts=()
+  while IFS= read -r line; do
+    [[ -n "$line" ]] && conflicts+=("$line")
+  done < <(collect_conflicts "$keyeq")
+
+  if (( ${#conflicts[@]} > 0 )); then
+    echo "该快捷键已被其他 Service 占用："
+    local c
+    for c in "${conflicts[@]}"; do
+      echo "- $c"
+    done
+    return 2
+  fi
+
+  set_service_key_equivalent "$keyeq"
+  sync_terminal_app_shortcuts "$keyeq"
+  refresh_services
+  echo "快捷键已更新：${combo}"
+  return 0
+}
+
+cmd_status() {
+  if ! is_macos; then
+    echo "ERROR macOS only"
+    return 1
+  fi
+
+  local has_error=0
+
+  if [[ -d "$WORKFLOW_PATH" ]]; then
+    if workflow_is_managed; then
+      echo "OK workflow: ${WORKFLOW_PATH}"
+    else
+      echo "WARN workflow exists but unmanaged: ${WORKFLOW_PATH}"
+    fi
+  else
+    echo "ERROR workflow missing: ${WORKFLOW_PATH}"
+    has_error=1
+  fi
+
+  if [[ -x "$RUNNER_PATH" ]]; then
+    if runner_is_managed; then
+      echo "OK runner: ${RUNNER_PATH}"
+    else
+      echo "WARN runner exists but unmanaged: ${RUNNER_PATH}"
+    fi
+  else
+    echo "ERROR runner missing: ${RUNNER_PATH}"
+    has_error=1
+  fi
+
+  local tiler_cmd=""
+  tiler_cmd="$(command -v terminal-tile-all 2>/dev/null || true)"
+  if [[ -z "$tiler_cmd" && -x "${BIN_DIR}/terminal-tile-all" ]]; then
+    tiler_cmd="${BIN_DIR}/terminal-tile-all"
+  fi
+
+  if [[ -n "$tiler_cmd" ]]; then
+    echo "OK tiler: ${tiler_cmd}"
+  else
+    echo "ERROR tiler missing: terminal-tile-all"
+    has_error=1
+  fi
+
+  local current_eq current_combo
+  current_eq="$(read_service_key_equivalent)"
+  local services_shortcuts_present
+  services_shortcuts_present="$("$PLIST_BUDDY" -c "Print ServicesShortcutsPresent" "$PBS_PLIST" 2>/dev/null || true)"
+  if [[ "$services_shortcuts_present" != "true" && "$services_shortcuts_present" != "1" ]]; then
+    echo "WARN services-shortcuts: disabled (ServicesShortcutsPresent=${services_shortcuts_present:-missing})"
+  else
+    echo "OK services-shortcuts: enabled"
+  fi
+  if [[ -z "$current_eq" ]]; then
+    echo "WARN hotkey: not bound"
+  else
+    current_combo="$(key_equivalent_to_combo "$current_eq" 2>/dev/null || true)"
+    if [[ -n "$current_combo" ]]; then
+      echo "OK hotkey: ${current_combo} (${current_eq})"
+    else
+      echo "OK hotkey: ${current_eq}"
+    fi
+
+    local -a conflicts
+    conflicts=()
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && conflicts+=("$line")
+    done < <(collect_conflicts "$current_eq")
+
+    if (( ${#conflicts[@]} > 0 )); then
+      echo "WARN conflict: also used by"
+      local item
+      for item in "${conflicts[@]}"; do
+        echo "- $item"
+      done
+    else
+      echo "OK conflict-check: clear in Services domain"
+    fi
+  fi
+
+  return "$has_error"
+}
+
+cmd_uninstall() {
+  if ! is_macos; then
+    echo "仅支持 macOS。"
+    return 1
+  fi
+
+  if [[ -d "$WORKFLOW_PATH" ]]; then
+    if workflow_is_managed; then
+      rm -rf "$WORKFLOW_PATH"
+      echo "已删除 Service：${WORKFLOW_PATH}"
+    else
+      echo "跳过未托管 Service：${WORKFLOW_PATH}"
+    fi
+  fi
+
+  if [[ -f "$RUNNER_PATH" ]]; then
+    if runner_is_managed; then
+      rm -f "$RUNNER_PATH"
+      echo "已删除 runner：${RUNNER_PATH}"
+    else
+      echo "跳过未托管 runner：${RUNNER_PATH}"
+    fi
+  fi
+
+  remove_service_status
+  refresh_services
+
+  rm -f "$SENTINEL_PATH"
+  echo "快捷键已卸载。若菜单未即时刷新，可注销或重启后再试。"
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+  exit 1
+fi
+
+subcommand="$1"
+shift || true
+
+case "$subcommand" in
+  bootstrap)
+    cmd_bootstrap "$@"
+    ;;
+  set)
+    cmd_set "$@"
+    ;;
+  status)
+    cmd_status "$@"
+    ;;
+  uninstall)
+    cmd_uninstall "$@"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac
