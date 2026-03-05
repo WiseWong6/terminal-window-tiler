@@ -91,10 +91,7 @@ TILE_DEBUG=1 分屏
 ## 社媒与公众号 | Socials & WeChat
 
 - 全网账号：`@歪斯Wise`
-- 平台：小红书 / Twitter(X) / 公众号
-- 公众号：**歪斯**
-- 小红书：[小红书](https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73)
-- x：[x](https://x.com/killthewhys)
+- 平台：[小红书](https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73)/  [Twitter(X)](https://x.com/killthewhys)/ 公众号
 
 扫码关注公众号（歪斯）：
 
