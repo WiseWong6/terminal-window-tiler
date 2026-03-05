@@ -75,8 +75,10 @@ cd terminal-window-tiler
 mkdir -p ~/.local/bin
 cp scripts/terminal-tile-all ~/.local/bin/
 cp scripts/terminal-tile-hotkey ~/.local/bin/
+cp scripts/zone ~/.local/bin/
 chmod +x ~/.local/bin/terminal-tile-all
 chmod +x ~/.local/bin/terminal-tile-hotkey
+chmod +x ~/.local/bin/zone
 
 # 初始化系统快捷键（首次安装建议执行一次）
 ~/.local/bin/terminal-tile-hotkey bootstrap
@@ -114,6 +116,39 @@ TILE_DEBUG=1 ~/.local/bin/terminal-tile-all
 TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all
 ```
 
+高级分区模式（仅管理终端区，手动命令触发）：
+
+```bash
+# 最短写法
+~/.local/bin/terminal-tile-all 左4
+~/.local/bin/terminal-tile-all left4
+~/.local/bin/zone 左4
+~/.local/bin/zone left4
+
+# 短命令写法
+~/.local/bin/terminal-tile-all zone 左4
+~/.local/bin/terminal-tile-all zone left4
+
+# 中文方向+数字（推荐）
+~/.local/bin/terminal-tile-all --分区 左2
+~/.local/bin/terminal-tile-all --分区 左3
+~/.local/bin/terminal-tile-all --分区 左4
+
+# 同义写法
+~/.local/bin/terminal-tile-all --zone 右2
+~/.local/bin/terminal-tile-all --zone 右3
+~/.local/bin/terminal-tile-all --zone 右4
+
+# 兼容旧写法（仍可用）
+~/.local/bin/terminal-tile-all --profile term-left-quarter
+```
+
+说明：
+- 快捷键行为不变，仍走默认全屏终端整理。
+- `--分区/--zone/--profile` 只移动终端窗口（iTerm2 / Terminal / Ghostty），不会移动浏览器、微信等非终端窗口。
+- 终端区内：`n <= 6` 时上下堆叠；`n > 6` 时回退为终端区内网格布局。
+- 若同时设置 `TILE_MODE=iterm_fast` 与 `--profile`，会优先 `--profile`（自动走 full multi-terminal 模式）。
+
 可选参数：
 
 - `TILE_GAP`（默认 `10`）
@@ -122,6 +157,7 @@ TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all
 - `TILE_MARGIN_BOTTOM`（默认 `8`）
 - `TILE_MARGIN_LEFT`（默认 `8`）
 - `TILE_MODE`（`iterm_fast` 为 iTerm2 快速模式）
+- `TILE_PROFILE`（与 `--profile` 一致；`--profile` 优先级更高）
 
 ## 社媒与公众号 | Socials & WeChat
 
@@ -136,3 +172,4 @@ TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all
 
 - Ghostty 若未参与平铺，先检查：系统设置 -> 隐私与安全性 -> 辅助功能。
 - 单显示器多桌面（Spaces）场景下，窗口管理语义会受当前桌面上下文影响，这是 macOS 机制，不是终端脚本单点问题。
+- 当前版本在“混用多种终端应用（例如 iTerm2 + Terminal + Ghostty）”场景下仍有边界问题；单一终端应用场景更稳定。
