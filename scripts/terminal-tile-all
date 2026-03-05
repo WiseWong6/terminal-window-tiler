@@ -106,6 +106,8 @@ set winRecords to {}
 set iTermCount to 0
 set terminalCount to 0
 set ghosttyCount to 0
+set ghosttyUpperExists to false
+set ghosttyLowerExists to false
 
 -- iTerm2 windows (native AppleScript)
 try
@@ -140,13 +142,9 @@ end try
 -- Ghostty windows (System Events / Accessibility)
 try
   tell application "System Events"
-    if exists process "Ghostty" then
-      set ghosttyRunning to true
-      set ghosttyProcessName to "Ghostty"
-    else if exists process "ghostty" then
-      set ghosttyRunning to true
-      set ghosttyProcessName to "ghostty"
-    end if
+    set ghosttyUpperExists to (exists process "Ghostty")
+    set ghosttyLowerExists to (exists process "ghostty")
+    if ghosttyUpperExists or ghosttyLowerExists then set ghosttyRunning to true
   end tell
 on error
   set ghosttyRunning to false
@@ -155,6 +153,33 @@ end try
 
 if ghosttyRunning then
   try
+    set upperCount to -1
+    set lowerCount to -1
+
+    if ghosttyUpperExists then
+      try
+        tell application "System Events" to set upperCount to (count of windows of process "Ghostty")
+      end try
+    end if
+
+    if ghosttyLowerExists then
+      try
+        tell application "System Events" to set lowerCount to (count of windows of process "ghostty")
+      end try
+    end if
+
+    if upperCount is greater than or equal to lowerCount then
+      if ghosttyUpperExists then
+        set ghosttyProcessName to "Ghostty"
+      else
+        set ghosttyProcessName to "ghostty"
+      end if
+      set ghosttyCount to upperCount
+    else
+      set ghosttyProcessName to "ghostty"
+      set ghosttyCount to lowerCount
+    end if
+
     tell application "System Events"
       tell process ghosttyProcessName
         set gw to windows
