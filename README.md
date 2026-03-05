@@ -50,8 +50,7 @@ A macOS terminal window tiler for people who open too many terminal windows.
   - 9 -> 3x3
   - 10 -> 4x3
 - 支持 iTerm2 / Terminal / Ghostty（Ghostty 依赖辅助功能权限）
-- 支持英文缩写快捷命令安装（冲突检测 + 可选强制覆盖）
-- 支持系统快捷键自动初始化（首次分屏自动安装，默认 `ctrl+opt+t`，冲突可手动自定义）
+- 默认使用系统快捷键触发窗口整理（默认 `ctrl+opt+t`，可手动修改）
 
 ## 测试与兼容性 | Tested Compatibility
 
@@ -75,77 +74,44 @@ cd terminal-window-tiler
 
 mkdir -p ~/.local/bin
 cp scripts/terminal-tile-all ~/.local/bin/
-cp scripts/terminal-tile-bind ~/.local/bin/
 cp scripts/terminal-tile-hotkey ~/.local/bin/
 chmod +x ~/.local/bin/terminal-tile-all
-chmod +x ~/.local/bin/terminal-tile-bind
 chmod +x ~/.local/bin/terminal-tile-hotkey
 
-# 推荐：中文主命令 + 英文短命令
-echo "alias 分屏='~/.local/bin/terminal-tile-all'" >> ~/.zshrc
-echo "alias tile='~/.local/bin/terminal-tile-all'" >> ~/.zshrc
-source ~/.zshrc
+# 初始化系统快捷键（首次安装建议执行一次）
+~/.local/bin/terminal-tile-hotkey bootstrap
 ```
 
 ## 使用 | Usage
 
-```bash
-分屏
-# or
-tile
-```
-
-首次运行 `分屏` / `tile` 时，会自动初始化系统快捷键服务：
+默认使用系统快捷键触发（推荐）：
 
 - 默认绑定：`ctrl+opt+t`
 - 若默认键冲突：会在终端提示你输入新的组合（例如 `cmd+shift+t`），也可以输入 `skip` 跳过
-- 初始化失败不会中断当前分屏流程
-
-安装英文缩写快捷命令（示例：`ts`）：
-
-```bash
-terminal-tile-bind ts
-ts
-```
-
-若检测到冲突（已有同名命令 / alias / function / 文件），会阻止安装。  
-确认要覆盖时可用：
-
-```bash
-terminal-tile-bind ts --force
-```
 
 系统快捷键管理：
 
 ```bash
 # 查看快捷键状态
-terminal-tile-hotkey status
+~/.local/bin/terminal-tile-hotkey status
 
 # 手动改键（示例）
-terminal-tile-hotkey set cmd+shift+t
+~/.local/bin/terminal-tile-hotkey set cmd+shift+t
 
 # 卸载系统快捷键服务
-terminal-tile-hotkey uninstall
+~/.local/bin/terminal-tile-hotkey uninstall
 ```
 
 调试模式：
 
 ```bash
-TILE_DEBUG=1 分屏
+TILE_DEBUG=1 ~/.local/bin/terminal-tile-all
 ```
 
 性能模式（iTerm2 优先场景，速度更快）：
 
 ```bash
-TILE_MODE=iterm_fast 分屏
-```
-
-可设置 alias 作为默认：
-
-```bash
-echo "alias 分屏='TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all'" >> ~/.zshrc
-echo "alias tile='TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all'" >> ~/.zshrc
-source ~/.zshrc
+TILE_MODE=iterm_fast ~/.local/bin/terminal-tile-all
 ```
 
 可选参数：

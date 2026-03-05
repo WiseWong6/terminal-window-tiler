@@ -38,7 +38,7 @@ bootstrap_hotkey_once() {
     mkdir -p "$conf_dir"
     : > "$sentinel"
   else
-    echo "快捷键自动初始化失败（分屏将继续执行）。"
+    echo "快捷键自动初始化失败（窗口整理将继续执行）。"
   fi
 }
 
@@ -179,10 +179,13 @@ if debugMode is "1" then return "OK,iterm=" & iTermCount & ",terminal=0,ghostty=
 return "OK,iterm=" & iTermCount & ",terminal=0,ghostty=0,mode=iterm_fast"
 APPLESCRIPT
 )
-else
+fi
+
+# Fallback: if fast mode finds no iTerm windows, retry with full multi-terminal mode.
+if [[ "$TILE_MODE" != "iterm_fast" || "$result" == "NO_WINDOWS" ]]; then
 # Avoid expensive System Events calls when Ghostty is not running.
 CHECK_GHOSTTY=0
-if pgrep -x Ghostty >/dev/null 2>&1 || pgrep -x ghostty >/dev/null 2>&1; then
+if pgrep -if ghostty >/dev/null 2>&1; then
   CHECK_GHOSTTY=1
 fi
 
@@ -277,13 +280,12 @@ set checkGhostty to ${CHECK_GHOSTTY}
 
 set ghosttyRunning to false
 set ghosttyNeedsAX to false
+set ghosttyMoveFailed to false
 set ghosttyProcessName to ""
 set winRecords to {}
 set iTermCount to 0
 set terminalCount to 0
 set ghosttyCount to 0
-set ghosttyUpperExists to false
-set ghosttyLowerExists to false
 
 -- iTerm2 windows (native AppleScript)
 try
@@ -319,9 +321,20 @@ end try
 if checkGhostty is 1 then
   try
     tell application "System Events"
-      set ghosttyUpperExists to (exists process "Ghostty")
-      set ghosttyLowerExists to (exists process "ghostty")
-      if ghosttyUpperExists or ghosttyLowerExists then set ghosttyRunning to true
+      set ghosttyProc to missing value
+      set ghosttyProcList to (every process whose bundle identifier is "com.mitchellh.ghostty")
+      if (count of ghosttyProcList) > 0 then
+        set ghosttyProc to item 1 of ghosttyProcList
+      else if (exists process "Ghostty") then
+        set ghosttyProc to process "Ghostty"
+      else if (exists process "ghostty") then
+        set ghosttyProc to process "ghostty"
+      end if
+
+      if ghosttyProc is not missing value then
+        set ghosttyRunning to true
+        set ghosttyProcessName to name of ghosttyProc
+      end if
     end tell
   on error
     set ghosttyRunning to false
@@ -331,33 +344,6 @@ end if
 
 if ghosttyRunning then
   try
-    set upperCount to -1
-    set lowerCount to -1
-
-    if ghosttyUpperExists then
-      try
-        tell application "System Events" to set upperCount to (count of windows of process "Ghostty")
-      end try
-    end if
-
-    if ghosttyLowerExists then
-      try
-        tell application "System Events" to set lowerCount to (count of windows of process "ghostty")
-      end try
-    end if
-
-    if upperCount is greater than or equal to lowerCount then
-      if ghosttyUpperExists then
-        set ghosttyProcessName to "Ghostty"
-      else
-        set ghosttyProcessName to "ghostty"
-      end if
-      set ghosttyCount to upperCount
-    else
-      set ghosttyProcessName to "ghostty"
-      set ghosttyCount to lowerCount
-    end if
-
     tell application "System Events"
       tell process ghosttyProcessName
         set gw to windows
@@ -496,19 +482,22 @@ repeat with sidx from 1 to screenCount
             end repeat
           end tell
         end tell
+      on error
+        set ghosttyNeedsAX to true
+        set ghosttyMoveFailed to true
       end try
     end if
   end if
 end repeat
 
 if debugMode is "1" then
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX & ",ghosttyMoveFailed=" & ghosttyMoveFailed
 end if
 
 if ghosttyNeedsAX then
-  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning
+  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed
 else
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed
 end if
 APPLESCRIPT
 )
@@ -528,6 +517,10 @@ fi
 
 if [[ "$result" == *"ghosttyRunning=true"* && "$result" == *"ghostty=0"* ]]; then
   echo "检测到 Ghostty 进程，但没有可用窗口（可能未打开 Ghostty 窗口，或当前版本未暴露窗口给辅助功能）。"
+fi
+
+if [[ "$result" == *"ghosttyMoveFailed=true"* ]]; then
+  echo "检测到 Ghostty 窗口，但无法调整位置/尺寸。请检查“Ghostty”和当前终端对辅助功能的授权，然后重试。"
 fi
 
 if [[ "${DEBUG_MODE}" == "1" ]]; then
