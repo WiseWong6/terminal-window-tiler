@@ -2,7 +2,155 @@
 
 # Tile terminal windows across iTerm2, Terminal, and Ghostty.
 # Per-screen independent layout with fixed policy for 2..10 windows.
-# Optional env vars: TILE_GAP, TILE_MARGIN_TOP, TILE_MARGIN_RIGHT, TILE_MARGIN_BOTTOM, TILE_MARGIN_LEFT
+# Optional env vars: TILE_GAP, TILE_MARGIN_TOP, TILE_MARGIN_RIGHT, TILE_MARGIN_BOTTOM, TILE_MARGIN_LEFT, TILE_PROFILE
+
+print_usage() {
+  cat <<'EOF'
+Usage:
+  terminal-tile-all [--profile PROFILE]
+  terminal-tile-all [--zone ZONE]
+  terminal-tile-all [--分区 ZONE]
+  terminal-tile-all [zone|分区] ZONE
+  terminal-tile-all ZONE
+
+Profiles:
+  term-left-half
+  term-left-third
+  term-left-quarter
+  term-right-half
+  term-right-third
+  term-right-quarter
+
+Zones (方向+数字):
+  左2  左3  左4
+  右2  右3  右4
+  left2  left3  left4
+  right2 right3 right4
+EOF
+}
+
+profile_is_valid() {
+  case "$1" in
+    ""|term-left-half|term-left-third|term-left-quarter|term-right-half|term-right-third|term-right-quarter)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+profile_from_zone() {
+  local key="$1"
+  key="${key//[[:space:]]/}"
+  key="${key//-/}"
+  key="${key//_/}"
+  key="${(L)key}"
+
+  case "$key" in
+    左2|左1/2|左/2|left2|left1/2|left/2)
+      echo "term-left-half"
+      return 0
+      ;;
+    左3|左1/3|左/3|left3|left1/3|left/3)
+      echo "term-left-third"
+      return 0
+      ;;
+    左4|左1/4|左/4|left4|left1/4|left/4)
+      echo "term-left-quarter"
+      return 0
+      ;;
+    右2|右1/2|右/2|right2|right1/2|right/2)
+      echo "term-right-half"
+      return 0
+      ;;
+    右3|右1/3|右/3|right3|right1/3|right/3)
+      echo "term-right-third"
+      return 0
+      ;;
+    右4|右1/4|右/4|right4|right1/4|right/4)
+      echo "term-right-quarter"
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+looks_like_zone_arg() {
+  local key="$1"
+  key="${key//[[:space:]]/}"
+  key="${key//-/}"
+  key="${key//_/}"
+  key="${(L)key}"
+  case "$key" in
+    左|右|left|right|左2|左3|左4|右2|右3|右4|left2|left3|left4|right2|right3|right4|左1/2|左1/3|左1/4|右1/2|右1/3|右1/4|left1/2|left1/3|left1/4|right1/2|right1/3|right1/4)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+PROFILE_ARG=""
+ZONE_ARG=""
+while (( $# > 0 )); do
+  case "$1" in
+    --profile)
+      shift
+      if (( $# == 0 )); then
+        echo "缺少 --profile 的值。" >&2
+        print_usage >&2
+        exit 2
+      fi
+      PROFILE_ARG="$1"
+      ;;
+    --zone|--分区|-z|zone|分区)
+      shift
+      if (( $# == 0 )); then
+        echo "缺少 --zone/--分区 的值。" >&2
+        print_usage >&2
+        exit 2
+      fi
+      ZONE_ARG="$1"
+      # Support spaced input: --zone 左 4
+      if [[ "$ZONE_ARG" == "左" || "$ZONE_ARG" == "右" || "$ZONE_ARG" == "left" || "$ZONE_ARG" == "right" ]]; then
+        if (( $# < 2 )); then
+          echo "方向后缺少数字，请使用 2/3/4。" >&2
+          print_usage >&2
+          exit 2
+        fi
+        ZONE_ARG="${ZONE_ARG}$2"
+        shift
+      fi
+      ;;
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      if looks_like_zone_arg "$1"; then
+        ZONE_ARG="$1"
+        if [[ "$ZONE_ARG" == "左" || "$ZONE_ARG" == "右" || "$ZONE_ARG" == "left" || "$ZONE_ARG" == "right" ]]; then
+          if (( $# < 2 )); then
+            echo "方向后缺少数字，请使用 2/3/4。" >&2
+            print_usage >&2
+            exit 2
+          fi
+          ZONE_ARG="${ZONE_ARG}$2"
+          shift
+        fi
+      else
+        echo "未知参数: $1" >&2
+        print_usage >&2
+        exit 2
+      fi
+      ;;
+  esac
+  shift
+done
 
 bootstrap_hotkey_once() {
   if [[ "${TILE_SKIP_HOTKEY_BOOTSTRAP:-0}" == "1" ]]; then
@@ -51,6 +199,38 @@ M_BOTTOM=${TILE_MARGIN_BOTTOM:-8}
 M_LEFT=${TILE_MARGIN_LEFT:-8}
 DEBUG_MODE=${TILE_DEBUG:-0}
 TILE_MODE=${TILE_MODE:-}
+TILE_PROFILE=${TILE_PROFILE:-}
+ZONE_PROFILE=""
+
+if [[ -n "$PROFILE_ARG" && -n "$ZONE_ARG" ]]; then
+  echo "--profile 与 --zone/--分区 不能同时使用。" >&2
+  print_usage >&2
+  exit 2
+fi
+
+if [[ -n "$ZONE_ARG" ]]; then
+  if ! ZONE_PROFILE="$(profile_from_zone "$ZONE_ARG")"; then
+    echo "无效分区: $ZONE_ARG（请使用 左2/左3/左4/右2/右3/右4）" >&2
+    print_usage >&2
+    exit 2
+  fi
+  TILE_PROFILE="$ZONE_PROFILE"
+fi
+
+if [[ -n "$PROFILE_ARG" ]]; then
+  TILE_PROFILE="$PROFILE_ARG"
+fi
+
+if ! profile_is_valid "$TILE_PROFILE"; then
+  echo "无效 profile: $TILE_PROFILE" >&2
+  print_usage >&2
+  exit 2
+fi
+
+# Advanced profile always uses full multi-terminal mode.
+if [[ -n "$TILE_PROFILE" ]]; then
+  TILE_MODE=""
+fi
 
 if [[ "$TILE_MODE" == "iterm_fast" ]]; then
 result=$(osascript <<APPLESCRIPT
@@ -270,6 +450,16 @@ on colCountFor(n)
   return c
 end colCountFor
 
+on zoneConfigForProfile(profileName)
+  if profileName is "term-left-half" then return {"left", 2}
+  if profileName is "term-left-third" then return {"left", 3}
+  if profileName is "term-left-quarter" then return {"left", 4}
+  if profileName is "term-right-half" then return {"right", 2}
+  if profileName is "term-right-third" then return {"right", 3}
+  if profileName is "term-right-quarter" then return {"right", 4}
+  return {"", 0}
+end zoneConfigForProfile
+
 set gap to ${GAP}
 set mTop to ${M_TOP}
 set mRight to ${M_RIGHT}
@@ -277,6 +467,12 @@ set mBottom to ${M_BOTTOM}
 set mLeft to ${M_LEFT}
 set debugMode to "${DEBUG_MODE}"
 set checkGhostty to ${CHECK_GHOSTTY}
+set tileProfile to "${TILE_PROFILE}"
+set advancedMode to false
+if tileProfile is not "" then set advancedMode to true
+set zoneCfg to my zoneConfigForProfile(tileProfile)
+set zoneSide to item 1 of zoneCfg
+set zoneDivisor to item 2 of zoneCfg
 
 set ghosttyRunning to false
 set ghosttyNeedsAX to false
@@ -368,10 +564,12 @@ end if
 set totalWins to count of winRecords
 if totalWins = 0 then return "NO_WINDOWS"
 if totalWins = 1 then
-  if ghosttyNeedsAX then
-    return "ONLY_ONE_WINDOW,GHOSTTY_NEEDS_AX"
-  else
-    return "ONLY_ONE_WINDOW"
+  if not advancedMode then
+    if ghosttyNeedsAX then
+      return "ONLY_ONE_WINDOW,GHOSTTY_NEEDS_AX"
+    else
+      return "ONLY_ONE_WINDOW"
+    end if
   end if
 end if
 
@@ -407,12 +605,33 @@ repeat with sidx from 1 to screenCount
     if availW < 200 then set availW to 200
     if availH < 200 then set availH to 200
 
-    set colCount to my colCountFor(n)
-    set rowCount to (n div colCount)
-    if (n mod colCount) > 0 then set rowCount to rowCount + 1
+    set zoneLeft to availLeft
+    set zoneTop to availTop
+    set zoneRight to availRight
+    set zoneBottom to availBottom
+    if advancedMode and zoneDivisor > 0 then
+      set zoneWidth to availW div zoneDivisor
+      if zoneSide is "left" then
+        set zoneRight to availLeft + zoneWidth
+      else if zoneSide is "right" then
+        set zoneLeft to availRight - zoneWidth
+      end if
+    end if
 
-    set cellW to ((availW - (gap * (colCount - 1))) div colCount)
-    set cellH to ((availH - (gap * (rowCount - 1))) div rowCount)
+    set zoneW to zoneRight - zoneLeft
+    set zoneH to zoneBottom - zoneTop
+
+    if advancedMode and n <= 6 then
+      set colCount to 1
+      set rowCount to n
+    else
+      set colCount to my colCountFor(n)
+      set rowCount to (n div colCount)
+      if (n mod colCount) > 0 then set rowCount to rowCount + 1
+    end if
+
+    set cellW to ((zoneW - (gap * (colCount - 1))) div colCount)
+    set cellH to ((zoneH - (gap * (rowCount - 1))) div rowCount)
     set iTermOps to {}
     set terminalOps to {}
     set ghosttyOps to {}
@@ -421,10 +640,12 @@ repeat with sidx from 1 to screenCount
       set idx to j - 1
       set rr to idx div colCount
       set cc to idx mod colCount
-      set x1 to availLeft + (cc * (cellW + gap))
-      set y1 to availTop + (rr * (cellH + gap))
+      set x1 to zoneLeft + (cc * (cellW + gap))
+      set y1 to zoneTop + (rr * (cellH + gap))
       set x2 to x1 + cellW
       set y2 to y1 + cellH
+      if cc is (colCount - 1) then set x2 to zoneRight
+      if rr is (rowCount - 1) then set y2 to zoneBottom
 
       set recIndex to item j of ids
       set rec to item recIndex of winRecords
@@ -491,13 +712,13 @@ repeat with sidx from 1 to screenCount
 end repeat
 
 if debugMode is "1" then
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX & ",ghosttyMoveFailed=" & ghosttyMoveFailed
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
 end if
 
 if ghosttyNeedsAX then
-  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed
+  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
 else
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
 end if
 APPLESCRIPT
 )
@@ -515,7 +736,7 @@ if [[ "$result" == *"GHOSTTY_NEEDS_AX"* ]]; then
   echo "Ghostty 需要开启辅助功能权限后才能参与分屏：系统设置 -> 隐私与安全性 -> 辅助功能。"
 fi
 
-if [[ "$result" == *"ghosttyRunning=true"* && "$result" == *"ghostty=0"* ]]; then
+if [[ "${DEBUG_MODE}" == "1" && "$result" == *"ghosttyRunning=true"* && "$result" == *"ghostty=0"* ]]; then
   echo "检测到 Ghostty 进程，但没有可用窗口（可能未打开 Ghostty 窗口，或当前版本未暴露窗口给辅助功能）。"
 fi
 
