@@ -14,8 +14,8 @@ APP_MARKER="managed-by=terminal-window-tiler"
 APP_NAME="terminal-window-tiler"
 SERVICE_DISPLAY_NAME="Terminal Tile"
 SERVICE_KEY="(null) - ${SERVICE_DISPLAY_NAME} - runWorkflowAsService"
-DEFAULT_COMBO="ctrl+opt+t"
-DEFAULT_KEY_EQ="^~t"
+DEFAULT_COMBO="ctrl+command+t"
+DEFAULT_KEY_EQ="@^t"
 
 TILE_HOME="${TILE_HOTKEY_HOME:-$HOME}"
 CONFIG_DIR="${TILE_HOME}/.config/${APP_NAME}"
@@ -57,7 +57,7 @@ Hotkey combo format:
   cmd|command, shift, opt|option|alt, ctrl|control + single letter (a-z)
 Examples:
   terminal-tile-hotkey set cmd+shift+t
-  terminal-tile-hotkey set ctrl+opt+t
+  terminal-tile-hotkey set ctrl+command+t
 EOF
 }
 
@@ -506,7 +506,7 @@ remove_service_status() {
 
 prompt_for_custom_combo() {
   while true; do
-    printf "默认快捷键 %s 已冲突，请输入新的快捷键组合（例如 cmd+opt+t），或输入 skip 跳过： " "$DEFAULT_COMBO" >&2
+    printf "默认快捷键 %s 已冲突，请输入新的快捷键组合（例如 cmd+shift+t），或输入 skip 跳过： " "$DEFAULT_COMBO" >&2
     if ! read -r input_combo; then
       echo "SKIP"
       return 0
@@ -653,7 +653,7 @@ cmd_set() {
   parsed="$(combo_to_key_equivalent "$1" 2>/dev/null || true)"
   if [[ -z "$parsed" ]]; then
     echo "快捷键格式无效：$1"
-    echo "示例：cmd+shift+t / ctrl+opt+t"
+    echo "示例：cmd+shift+t / ctrl+command+t"
     return 1
   fi
   combo="${parsed%%|*}"

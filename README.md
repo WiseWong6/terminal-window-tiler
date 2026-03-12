@@ -45,7 +45,7 @@ Then you switch to the browser, check WeChat, come back—and the layout is a me
 - 检测当前所有 iTerm2 / Terminal / Ghostty 窗口
 - 按显示器分组，一键平铺到固定布局（2~10 窗口）
 - 可选「分区模式」：只管理屏幕左侧或右侧的终端区，留另一半给浏览器/微信
-- 用系统快捷键触发（默认 `ctrl+opt+t`）
+- 用系统快捷键触发（默认 `ctrl+command+t`）
 
 **它不做**
 - 不是 pane 管理器（不替代 tmux/Zellij 的 split）
@@ -56,7 +56,7 @@ Then you switch to the browser, check WeChat, come back—and the layout is a me
 - Detect all iTerm2 / Terminal / Ghostty windows
 - Group by display, tile into fixed layouts (2–10 windows)
 - Optional "zone mode": manage only left/right terminal zone, leave the other half for browser/chat
-- Trigger via system hotkey (default `ctrl+opt+t`)
+- Trigger via system hotkey (default `ctrl+command+t`)
 
 **It doesn't**
 - Replace pane managers (not a tmux/Zellij alternative)
@@ -106,7 +106,7 @@ chmod +x ~/.local/bin/zone
 
 ### 快捷键触发（推荐）
 
-- 默认绑定：`ctrl+opt+t`
+- 默认绑定：`ctrl+command+t`
 - 若冲突：终端会提示输入新组合（如 `cmd+shift+t`），或输入 `skip` 跳过
 
 ```bash
