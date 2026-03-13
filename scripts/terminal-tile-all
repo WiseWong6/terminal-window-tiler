@@ -2,24 +2,13 @@
 
 # Tile terminal windows across iTerm2, Terminal, and Ghostty.
 # Per-screen independent layout with fixed policy for 2..10 windows.
-# Optional env vars: TILE_GAP, TILE_MARGIN_TOP, TILE_MARGIN_RIGHT, TILE_MARGIN_BOTTOM, TILE_MARGIN_LEFT, TILE_PROFILE
+# Optional env vars: TILE_GAP, TILE_MARGIN_TOP, TILE_MARGIN_RIGHT, TILE_MARGIN_BOTTOM, TILE_MARGIN_LEFT
 
 print_usage() {
   cat <<'EOF'
 Usage:
-  terminal-tile-all [--profile PROFILE]
-  terminal-tile-all [--zone ZONE]
-  terminal-tile-all [--分区 ZONE]
-  terminal-tile-all [zone|分区] ZONE
+  terminal-tile-all
   terminal-tile-all ZONE
-
-Profiles:
-  term-left-half
-  term-left-third
-  term-left-quarter
-  term-right-half
-  term-right-third
-  term-right-quarter
 
 Zones (方向+数字):
   左2  左3  左4
@@ -29,18 +18,7 @@ Zones (方向+数字):
 EOF
 }
 
-profile_is_valid() {
-  case "$1" in
-    ""|term-left-half|term-left-third|term-left-quarter|term-right-half|term-right-third|term-right-quarter)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-profile_from_zone() {
+zone_layout_from_arg() {
   local key="$1"
   key="${key//[[:space:]]/}"
   key="${key//-/}"
@@ -94,43 +72,19 @@ looks_like_zone_arg() {
   esac
 }
 
-PROFILE_ARG=""
 ZONE_ARG=""
 while (( $# > 0 )); do
   case "$1" in
-    --profile)
-      shift
-      if (( $# == 0 )); then
-        echo "缺少 --profile 的值。" >&2
-        print_usage >&2
-        exit 2
-      fi
-      PROFILE_ARG="$1"
-      ;;
-    --zone|--分区|-z|zone|分区)
-      shift
-      if (( $# == 0 )); then
-        echo "缺少 --zone/--分区 的值。" >&2
-        print_usage >&2
-        exit 2
-      fi
-      ZONE_ARG="$1"
-      # Support spaced input: --zone 左 4
-      if [[ "$ZONE_ARG" == "左" || "$ZONE_ARG" == "右" || "$ZONE_ARG" == "left" || "$ZONE_ARG" == "right" ]]; then
-        if (( $# < 2 )); then
-          echo "方向后缺少数字，请使用 2/3/4。" >&2
-          print_usage >&2
-          exit 2
-        fi
-        ZONE_ARG="${ZONE_ARG}$2"
-        shift
-      fi
-      ;;
     -h|--help)
       print_usage
       exit 0
       ;;
     *)
+      if [[ -n "$ZONE_ARG" ]]; then
+        echo "仅支持一个可选分区参数。" >&2
+        print_usage >&2
+        exit 2
+      fi
       if looks_like_zone_arg "$1"; then
         ZONE_ARG="$1"
         if [[ "$ZONE_ARG" == "左" || "$ZONE_ARG" == "右" || "$ZONE_ARG" == "left" || "$ZONE_ARG" == "right" ]]; then
@@ -199,36 +153,20 @@ M_BOTTOM=${TILE_MARGIN_BOTTOM:-8}
 M_LEFT=${TILE_MARGIN_LEFT:-8}
 DEBUG_MODE=${TILE_DEBUG:-0}
 TILE_MODE=${TILE_MODE:-}
-TILE_PROFILE=${TILE_PROFILE:-}
-ZONE_PROFILE=""
-
-if [[ -n "$PROFILE_ARG" && -n "$ZONE_ARG" ]]; then
-  echo "--profile 与 --zone/--分区 不能同时使用。" >&2
-  print_usage >&2
-  exit 2
-fi
+TILE_ZONE_LAYOUT=""
+ZONE_LAYOUT=""
 
 if [[ -n "$ZONE_ARG" ]]; then
-  if ! ZONE_PROFILE="$(profile_from_zone "$ZONE_ARG")"; then
+  if ! ZONE_LAYOUT="$(zone_layout_from_arg "$ZONE_ARG")"; then
     echo "无效分区: $ZONE_ARG（请使用 左2/左3/左4/右2/右3/右4）" >&2
     print_usage >&2
     exit 2
   fi
-  TILE_PROFILE="$ZONE_PROFILE"
+  TILE_ZONE_LAYOUT="$ZONE_LAYOUT"
 fi
 
-if [[ -n "$PROFILE_ARG" ]]; then
-  TILE_PROFILE="$PROFILE_ARG"
-fi
-
-if ! profile_is_valid "$TILE_PROFILE"; then
-  echo "无效 profile: $TILE_PROFILE" >&2
-  print_usage >&2
-  exit 2
-fi
-
-# Advanced profile always uses full multi-terminal mode.
-if [[ -n "$TILE_PROFILE" ]]; then
+# Zone mode always uses full multi-terminal mode.
+if [[ -n "$TILE_ZONE_LAYOUT" ]]; then
   TILE_MODE=""
 fi
 
@@ -450,15 +388,15 @@ on colCountFor(n)
   return c
 end colCountFor
 
-on zoneConfigForProfile(profileName)
-  if profileName is "term-left-half" then return {"left", 2}
-  if profileName is "term-left-third" then return {"left", 3}
-  if profileName is "term-left-quarter" then return {"left", 4}
-  if profileName is "term-right-half" then return {"right", 2}
-  if profileName is "term-right-third" then return {"right", 3}
-  if profileName is "term-right-quarter" then return {"right", 4}
+on zoneConfigForLayout(layoutName)
+  if layoutName is "term-left-half" then return {"left", 2}
+  if layoutName is "term-left-third" then return {"left", 3}
+  if layoutName is "term-left-quarter" then return {"left", 4}
+  if layoutName is "term-right-half" then return {"right", 2}
+  if layoutName is "term-right-third" then return {"right", 3}
+  if layoutName is "term-right-quarter" then return {"right", 4}
   return {"", 0}
-end zoneConfigForProfile
+end zoneConfigForLayout
 
 set gap to ${GAP}
 set mTop to ${M_TOP}
@@ -467,10 +405,10 @@ set mBottom to ${M_BOTTOM}
 set mLeft to ${M_LEFT}
 set debugMode to "${DEBUG_MODE}"
 set checkGhostty to ${CHECK_GHOSTTY}
-set tileProfile to "${TILE_PROFILE}"
+set tileZoneLayout to "${TILE_ZONE_LAYOUT}"
 set advancedMode to false
-if tileProfile is not "" then set advancedMode to true
-set zoneCfg to my zoneConfigForProfile(tileProfile)
+if tileZoneLayout is not "" then set advancedMode to true
+set zoneCfg to my zoneConfigForLayout(tileZoneLayout)
 set zoneSide to item 1 of zoneCfg
 set zoneDivisor to item 2 of zoneCfg
 
@@ -712,13 +650,13 @@ repeat with sidx from 1 to screenCount
 end repeat
 
 if debugMode is "1" then
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyProcess=" & ghosttyProcessName & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyNeedsAX=" & ghosttyNeedsAX & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",zoneLayout=" & tileZoneLayout
 end if
 
 if ghosttyNeedsAX then
-  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
+  return "OK,GHOSTTY_NEEDS_AX,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",zoneLayout=" & tileZoneLayout
 else
-  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",profile=" & tileProfile
+  return "OK,iterm=" & iTermCount & ",terminal=" & terminalCount & ",ghostty=" & ghosttyCount & ",ghosttyRunning=" & ghosttyRunning & ",ghosttyMoveFailed=" & ghosttyMoveFailed & ",zoneLayout=" & tileZoneLayout
 end if
 APPLESCRIPT
 )

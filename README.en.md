@@ -10,9 +10,11 @@
 >
 > Built for multi-terminal, multi-display, keyboard-first workflows.
 
+## One-click cleanup
 ![Full-screen tiling demo](./assets/demo-fullscreen.gif)
 
-> The README currently uses explanatory animations. They can be replaced with real screen recordings later.
+## Zone mode
+![Zone mode demo](./assets/demo-zone.gif)
 
 ## At a Glance
 
@@ -93,7 +95,7 @@ Manual resizing works, but it breaks flow every time.
 
 ## Installation
 
-This project is intentionally built for macOS and MacBook-style terminal workflows.
+This project is intentionally built for macOS and MacBook-style terminal workflows. If you mainly work on Windows, this project does not support that workflow yet, though you are free to adapt the code yourself.
 
 ```bash
 git clone https://github.com/WiseWong6/wise-terminal-tiler.git
@@ -130,31 +132,16 @@ terminal-tile-hotkey uninstall
 
 Zone mode is designed for terminal-plus-browser or terminal-plus-chat workflows. It only rearranges terminal windows and leaves everything else alone.
 
-![Zone mode demo](./assets/demo-zone.gif)
-
-> The README currently uses explanatory animations. They can be replaced with real screen recordings later.
-
 ```bash
 # Short form
+zone 左4
 zone left4
-
-# Chinese aliases also work
-terminal-tile-all --分区 左2
-terminal-tile-all --分区 左3
-terminal-tile-all --分区 右4
-
-# English flags
-terminal-tile-all --zone right2
-terminal-tile-all --zone right3
-
-# Legacy-compatible form
-terminal-tile-all --profile term-left-quarter
 ```
 
 Notes:
 
 - The default hotkey still runs full-screen terminal tiling
-- `--分区`, `--zone`, and `--profile` only move terminal windows
+- `zone left4` or `zone 左4` only moves terminal windows
 - In zone mode, `n <= 6` stacks vertically and `n > 6` falls back to the grid layouts below
 
 ### Advanced parameters
@@ -167,12 +154,10 @@ Notes:
 | `TILE_MARGIN_BOTTOM` | `8` | Bottom margin |
 | `TILE_MARGIN_LEFT` | `8` | Left margin |
 | `TILE_MODE` | — | Set `iterm_fast` for the faster iTerm2-only path |
-| `TILE_PROFILE` | — | Equivalent to `--profile`; CLI args still win |
 
 ```bash
 TILE_DEBUG=1 terminal-tile-all
 TILE_MODE=iterm_fast terminal-tile-all
-TILE_MODE=iterm_fast terminal-tile-all --zone left4
 ```
 
 ---
@@ -189,7 +174,7 @@ TILE_MODE=iterm_fast terminal-tile-all --zone left4
 | 9 | 3×3 |
 | 10 | 4×3 |
 
-In zone mode, `n <= 6` uses a vertical stack. Larger counts fall back to the standard grid layouts.
+In zone mode, for example `zone left4`, `n <= 6` uses a vertical stack. Larger counts fall back to the standard grid layouts.
 
 ---
 
@@ -209,9 +194,9 @@ Current practical guidance:
 - Not tested for terminals beyond iTerm2, Terminal, and Ghostty
 - Not intended for Windows
 
-### Ghostty permission note
+### Permission note
 
-Ghostty needs Accessibility permission before the script can control its windows:
+The hotkey only works on the terminal windows you are actively using. iTerm2 and Ghostty both rely on Accessibility permission before the script can control them:
 
 - System Settings -> Privacy & Security -> Accessibility -> add Ghostty
 
@@ -219,10 +204,15 @@ Ghostty needs Accessibility permission before the script can control its windows
 
 ## Socials and WeChat
 
-- `@歪斯Wise`
-- Platforms: [Xiaohongshu](https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73) / [Twitter(X)](https://x.com/killthewhys) / WeChat
-
-![WeChat QR](assets/wechat-wise-qr.jpg)
+<div align="center">
+  <p>Same handle everywhere: <code>@歪斯Wise</code></p>
+  <p>
+    <a href="https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73">Xiaohongshu</a> /
+    <a href="https://x.com/killthewhys">Twitter(X)</a> /
+    Scan for WeChat
+  </p>
+  <img src="assets/wechat-wise-qr.jpg" alt="WeChat QR" width="220" />
+</div>
 
 ---
 

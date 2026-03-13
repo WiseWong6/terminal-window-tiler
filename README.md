@@ -152,23 +152,11 @@ terminal-tile-hotkey uninstall
 # 最短写法
 zone 左4
 zone left4
-
-# 中文方向+数字
-terminal-tile-all --分区 左2
-terminal-tile-all --分区 左3
-terminal-tile-all --分区 右4
-
-# 英文写法
-terminal-tile-all --zone right2
-terminal-tile-all --zone right3
-
-# 兼容旧写法
-terminal-tile-all --profile term-left-quarter
 ```
 
 说明：
 - 快捷键行为不变，仍走默认全屏终端整理
-- `--分区/--zone/--profile` 只移动终端窗口，不会移动浏览器、微信等非终端窗口
+- `zone left4` / `zone 左4` 只移动终端窗口，不会移动浏览器、微信等非终端窗口
 - 终端区内：`n <= 6` 时上下堆叠；`n > 6` 时回退为网格布局
 
 ### 高级参数
@@ -181,7 +169,6 @@ terminal-tile-all --profile term-left-quarter
 | `TILE_MARGIN_BOTTOM` | `8` | 下边缘留白 |
 | `TILE_MARGIN_LEFT` | `8` | 左边缘留白 |
 | `TILE_MODE` | — | 设 `iterm_fast` 启用 iTerm2 快速模式 |
-| `TILE_PROFILE` | — | 等价于 `--profile`，命令行参数优先级更高 |
 
 ```bash
 # 调试模式
@@ -189,9 +176,6 @@ TILE_DEBUG=1 terminal-tile-all
 
 # iTerm2 快速模式（纯 iTerm2 场景速度更快）
 TILE_MODE=iterm_fast terminal-tile-all
-
-# 同时设置模式和分区（分区优先，自动走 full multi-terminal 模式）
-TILE_MODE=iterm_fast terminal-tile-all --zone 左4
 ```
 
 ---
@@ -208,7 +192,7 @@ TILE_MODE=iterm_fast terminal-tile-all --zone 左4
 | 9 | 3×3 |
 | 10 | 4×3 |
 
-分区模式下（`--zone`），`n <= 6` 时采用上下堆叠（1 列 n 行）；`n > 6` 时回退为上述网格布局。
+分区模式下（例如 `zone left4`），`n <= 6` 时采用上下堆叠（1 列 n 行）；`n > 6` 时回退为上述网格布局。
 
 ---
 
