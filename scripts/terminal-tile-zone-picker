@@ -14,7 +14,7 @@ esac
 
 choice="$(
   osascript <<'APPLESCRIPT' 2>/dev/null
-set zoneChoices to {"zl2", "zl3", "zl4", "zr2", "zr3", "zr4"}
+set zoneChoices to {"zl2 - 左边分屏 2 分之 1", "zl3 - 左边分屏 3 分之 1", "zl4 - 左边分屏 4 分之 1", "zr2 - 右边分屏 2 分之 1", "zr3 - 右边分屏 3 分之 1", "zr4 - 右边分屏 4 分之 1"}
 set picked to choose from list zoneChoices with prompt "选择终端分区布局" with title "Terminal Tile Zone" OK button name "执行" cancel button name "取消"
 if picked is false then
   return ""
@@ -26,6 +26,8 @@ APPLESCRIPT
 if [[ -z "$choice" ]]; then
   exit 0
 fi
+
+choice="${choice%% *}"
 
 SCRIPT_DIR="${0:A:h}"
 

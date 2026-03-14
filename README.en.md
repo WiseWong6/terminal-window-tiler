@@ -120,13 +120,26 @@ chmod +x ~/.local/bin/zone
 ### Hotkey trigger
 
 - Default binding: `ctrl+command+t`
-- If it conflicts, the tool prompts for another combo such as `cmd+shift+t`, or you can enter `skip`
+- Default zone picker binding: `ctrl+command+shift+t`
+- If a combo conflicts, the tool prompts for another combo such as `cmd+shift+t`, or you can enter `skip`
+- If zone hotkey setup fails during install, the installer now prints the exact recovery command instead of silently skipping it
 
 ```bash
 terminal-tile-hotkey status
+terminal-tile-hotkey zone-status
 terminal-tile-hotkey set cmd+shift+t
+terminal-tile-hotkey zone-set ctrl+command+shift+t
 terminal-tile-hotkey uninstall
+terminal-tile-hotkey zone-uninstall
 ```
+
+Notes:
+
+- `ctrl+command+t` runs the default full-screen tiling flow
+- `ctrl+command+shift+t` opens the zone picker with labeled options and runs immediately
+- Picker labels are `zl2 - 左边分屏 2 分之 1`, `zl3 - 左边分屏 3 分之 1`, `zl4 - 左边分屏 4 分之 1`, `zr2 - 右边分屏 2 分之 1`, `zr3 - 右边分屏 3 分之 1`, and `zr4 - 右边分屏 4 分之 1`
+- Both hotkeys are macOS Services and only fire when the frontmost app is iTerm2, Terminal, or Ghostty
+- `status` and `zone-status` report Service binding state from `pbs.plist` separately from per-app `NSUserKeyEquivalents`, so you can tell whether the shortcut is fully registered or only partially synced
 
 ### Zone Mode
 

@@ -86,13 +86,13 @@ install_claude_commands() {
 
   local name mode description target
   for entry in \
-    "tile||Tile all terminal windows immediately" \
-    "zl2|zl2|Tile terminal windows into left half zone immediately" \
-    "zl3|zl3|Tile terminal windows into left third zone immediately" \
-    "zl4|zl4|Tile terminal windows into left quarter zone immediately" \
-    "zr2|zr2|Tile terminal windows into right half zone immediately" \
-    "zr3|zr3|Tile terminal windows into right third zone immediately" \
-    "zr4|zr4|Tile terminal windows into right quarter zone immediately"; do
+    "tile||Tile terminal windows immediately" \
+    "zl2|zl2|Run zl2 immediately (左边分屏 2 分之 1)" \
+    "zl3|zl3|Run zl3 immediately (左边分屏 3 分之 1)" \
+    "zl4|zl4|Run zl4 immediately (左边分屏 4 分之 1)" \
+    "zr2|zr2|Run zr2 immediately (右边分屏 2 分之 1)" \
+    "zr3|zr3|Run zr3 immediately (右边分屏 3 分之 1)" \
+    "zr4|zr4|Run zr4 immediately (右边分屏 4 分之 1)"; do
     name="${entry%%|*}"
     local rest="${entry#*|}"
     mode="${rest%%|*}"
@@ -115,13 +115,13 @@ install_codex_prompts() {
 
   local name mode description target
   for entry in \
-    "tile||Tile all terminal windows immediately" \
-    "zl2|zl2|Tile terminal windows into left half zone immediately" \
-    "zl3|zl3|Tile terminal windows into left third zone immediately" \
-    "zl4|zl4|Tile terminal windows into left quarter zone immediately" \
-    "zr2|zr2|Tile terminal windows into right half zone immediately" \
-    "zr3|zr3|Tile terminal windows into right third zone immediately" \
-    "zr4|zr4|Tile terminal windows into right quarter zone immediately"; do
+    "tile||Tile terminal windows immediately" \
+    "zl2|zl2|Run zl2 immediately (左边分屏 2 分之 1)" \
+    "zl3|zl3|Run zl3 immediately (左边分屏 3 分之 1)" \
+    "zl4|zl4|Run zl4 immediately (左边分屏 4 分之 1)" \
+    "zr2|zr2|Run zr2 immediately (右边分屏 2 分之 1)" \
+    "zr3|zr3|Run zr3 immediately (右边分屏 3 分之 1)" \
+    "zr4|zr4|Run zr4 immediately (右边分屏 4 分之 1)"; do
     name="${entry%%|*}"
     local rest="${entry#*|}"
     mode="${rest%%|*}"
@@ -146,16 +146,16 @@ openclaw_skill_body() {
 
   if [[ "$name" == "tile" ]]; then
     cmd="${BIN_DIR}/tile"
-    description="立即整理所有终端窗口。"
+    description="立即整理终端窗口。"
   else
     cmd="${BIN_DIR}/${name}"
     case "$name" in
-      zl2) description="立即整理到左侧 1/2 zone。" ;;
-      zl3) description="立即整理到左侧 1/3 zone。" ;;
-      zl4) description="立即整理到左侧 1/4 zone。" ;;
-      zr2) description="立即整理到右侧 1/2 zone。" ;;
-      zr3) description="立即整理到右侧 1/3 zone。" ;;
-      zr4) description="立即整理到右侧 1/4 zone。" ;;
+      zl2) description="立即执行 zl2（左边分屏 2 分之 1）。" ;;
+      zl3) description="立即执行 zl3（左边分屏 3 分之 1）。" ;;
+      zl4) description="立即执行 zl4（左边分屏 4 分之 1）。" ;;
+      zr2) description="立即执行 zr2（右边分屏 2 分之 1）。" ;;
+      zr3) description="立即执行 zr3（右边分屏 3 分之 1）。" ;;
+      zr4) description="立即执行 zr4（右边分屏 4 分之 1）。" ;;
       *) description="立即整理终端窗口。" ;;
     esac
   fi
@@ -202,8 +202,21 @@ bootstrap_hotkeys() {
     return 0
   fi
 
-  "${BIN_DIR}/terminal-tile-hotkey" bootstrap || true
-  "${BIN_DIR}/terminal-tile-hotkey" zone-bootstrap || true
+  local main_rc=0
+  local zone_rc=0
+
+  "${BIN_DIR}/terminal-tile-hotkey" bootstrap || main_rc=$?
+  "${BIN_DIR}/terminal-tile-hotkey" zone-bootstrap || zone_rc=$?
+
+  if (( main_rc != 0 )); then
+    echo "WARN hotkey: main hotkey bootstrap did not complete cleanly (exit=${main_rc})." >&2
+    echo "WARN hotkey: run 'terminal-tile-hotkey status' and, if needed, 'terminal-tile-hotkey set ctrl+command+t'." >&2
+  fi
+
+  if (( zone_rc != 0 )); then
+    echo "WARN hotkey: zone hotkey is not ready (exit=${zone_rc})." >&2
+    echo "WARN hotkey: run 'terminal-tile-hotkey zone-status' and then 'terminal-tile-hotkey zone-set ctrl+command+shift+t' if the Service binding is missing." >&2
+  fi
 }
 
 print_usage() {

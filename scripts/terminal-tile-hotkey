@@ -479,6 +479,51 @@ key_equivalent_to_nsuikey() {
   printf '%s%s\n' "${keyeq[1,-2]}" "${keyeq[-1]:l}"
 }
 
+manual_set_subcommand() {
+  if [[ "$CURRENT_TARGET" == "zone" ]]; then
+    printf '%s\n' "zone-set"
+  else
+    printf '%s\n' "set"
+  fi
+}
+
+read_bundle_shortcut() {
+  local bundle="$1"
+  local plist_path="${PREFERENCES_DIR}/${bundle}.plist"
+  [[ -f "$plist_path" ]] || return 0
+  "$PLIST_BUDDY" -c "Print 'NSUserKeyEquivalents:${CURRENT_SERVICE_DISPLAY_NAME}'" "$plist_path" 2>/dev/null || true
+}
+
+bundle_display_name() {
+  local bundle="$1"
+  case "$bundle" in
+    com.googlecode.iterm2)
+      printf '%s\n' "iTerm2"
+      ;;
+    com.apple.Terminal)
+      printf '%s\n' "Terminal"
+      ;;
+    com.mitchellh.ghostty)
+      printf '%s\n' "Ghostty"
+      ;;
+    *)
+      printf '%s\n' "$bundle"
+      ;;
+  esac
+}
+
+verify_service_binding() {
+  local expected_eq="$1"
+  local actual_eq
+  actual_eq="$(read_service_key_equivalent)"
+  [[ -n "$actual_eq" && "$actual_eq" == "$expected_eq" ]]
+}
+
+print_manual_repair_hint() {
+  local combo="${1:-$CURRENT_DEFAULT_COMBO}"
+  echo "可手动执行：terminal-tile-hotkey $(manual_set_subcommand) ${combo}"
+}
+
 sync_terminal_app_shortcuts() {
   local keyeq="$1"
   local nsui_key
@@ -548,6 +593,11 @@ set_service_key_equivalent() {
 read_service_key_equivalent() {
   ensure_pbs_plist
   "$PLIST_BUDDY" -c "Print 'NSServicesStatus:${CURRENT_SERVICE_KEY}:key_equivalent'" "$PBS_PLIST" 2>/dev/null || true
+}
+
+read_services_shortcuts_present() {
+  ensure_pbs_plist
+  "$PLIST_BUDDY" -c "Print ServicesShortcutsPresent" "$PBS_PLIST" 2>/dev/null || true
 }
 
 remove_service_status() {
@@ -647,6 +697,11 @@ cmd_bootstrap() {
     set_service_key_equivalent "$current_eq"
     sync_terminal_app_shortcuts "$current_eq"
     refresh_services
+    if ! verify_service_binding "$current_eq"; then
+      echo "快捷键初始化失败：现有 Service 绑定未写回 pbs.plist（target=${CURRENT_TARGET}, expected=${current_eq}）。"
+      print_manual_repair_hint "$CURRENT_DEFAULT_COMBO"
+      return 1
+    fi
     current_combo="$(key_equivalent_to_combo "$current_eq" 2>/dev/null || true)"
     if [[ -n "$current_combo" ]]; then
       echo "快捷键已就绪（${current_combo}）。"
@@ -670,22 +725,27 @@ cmd_bootstrap() {
       local prompt_output
       prompt_output="$(prompt_for_custom_combo)"
       if [[ "$prompt_output" == "SKIP" ]]; then
-        local manual_cmd="set"
-        [[ "$CURRENT_TARGET" == "zone" ]] && manual_cmd="zone-set"
-        echo "快捷键服务已安装，未绑定按键。可手动执行：terminal-tile-hotkey ${manual_cmd} cmd+shift+t"
-        return 0
+        echo "快捷键服务已安装，但未绑定按键。"
+        print_manual_repair_hint "$CURRENT_DEFAULT_COMBO"
+        return 2
       fi
       chosen_combo="${prompt_output%%|*}"
       chosen_eq="${prompt_output##*|}"
     else
-      echo "快捷键服务已安装，但默认键冲突且当前为非交互终端，已跳过绑定。"
-      return 0
+      echo "快捷键服务已安装，但默认键冲突且当前为非交互终端，未完成绑定。"
+      print_manual_repair_hint "$CURRENT_DEFAULT_COMBO"
+      return 2
     fi
   fi
 
   set_service_key_equivalent "$chosen_eq"
   sync_terminal_app_shortcuts "$chosen_eq"
   refresh_services
+  if ! verify_service_binding "$chosen_eq"; then
+    echo "快捷键初始化失败：Service 绑定未写入 pbs.plist（target=${CURRENT_TARGET}, expected=${chosen_eq}）。"
+    print_manual_repair_hint "$chosen_combo"
+    return 1
+  fi
   echo "快捷键已就绪（${chosen_combo}）。"
   return 0
 }
@@ -735,6 +795,11 @@ cmd_set() {
   set_service_key_equivalent "$keyeq"
   sync_terminal_app_shortcuts "$keyeq"
   refresh_services
+  if ! verify_service_binding "$keyeq"; then
+    echo "快捷键更新失败：Service 绑定未写入 pbs.plist（target=${CURRENT_TARGET}, expected=${keyeq}）。"
+    print_manual_repair_hint "$combo"
+    return 1
+  fi
   echo "快捷键已更新：${combo}"
   return 0
 }
@@ -794,7 +859,7 @@ cmd_status() {
   local current_eq current_combo
   current_eq="$(read_service_key_equivalent)"
   local services_shortcuts_present
-  services_shortcuts_present="$("$PLIST_BUDDY" -c "Print ServicesShortcutsPresent" "$PBS_PLIST" 2>/dev/null || true)"
+  services_shortcuts_present="$(read_services_shortcuts_present)"
   if [[ "$services_shortcuts_present" != "true" && "$services_shortcuts_present" != "1" ]]; then
     echo "WARN services-shortcuts: disabled (ServicesShortcutsPresent=${services_shortcuts_present:-missing})"
   else
@@ -802,13 +867,13 @@ cmd_status() {
   fi
 
   if [[ -z "$current_eq" ]]; then
-    echo "WARN hotkey: not bound"
+    echo "WARN service-binding: missing in pbs.plist"
   else
     current_combo="$(key_equivalent_to_combo "$current_eq" 2>/dev/null || true)"
     if [[ -n "$current_combo" ]]; then
-      echo "OK hotkey: ${current_combo} (${current_eq})"
+      echo "OK service-binding: ${current_combo} (${current_eq})"
     else
-      echo "OK hotkey: ${current_eq}"
+      echo "OK service-binding: ${current_eq}"
     fi
 
     local -a conflicts
@@ -826,6 +891,45 @@ cmd_status() {
     else
       echo "OK conflict-check: clear in Services domain"
     fi
+  fi
+
+  local expected_nsui=""
+  if [[ -n "$current_eq" ]]; then
+    expected_nsui="$(key_equivalent_to_nsuikey "$current_eq" 2>/dev/null || true)"
+  fi
+
+  local -a shortcut_present=()
+  local -a shortcut_match=()
+  local -a shortcut_mismatch=()
+  local bundle
+  for bundle in "${TERMINAL_APP_BUNDLES[@]}"; do
+    local bundle_name bundle_shortcut
+    bundle_name="$(bundle_display_name "$bundle")"
+    bundle_shortcut="$(read_bundle_shortcut "$bundle")"
+
+    if [[ -z "$bundle_shortcut" ]]; then
+      echo "WARN app-shortcut[${bundle_name}]: missing"
+      continue
+    fi
+
+    shortcut_present+=("$bundle_name=${bundle_shortcut}")
+    if [[ -n "$expected_nsui" && "$bundle_shortcut" == "$expected_nsui" ]]; then
+      shortcut_match+=("$bundle_name")
+      echo "OK app-shortcut[${bundle_name}]: ${bundle_shortcut}"
+    elif [[ -n "$expected_nsui" ]]; then
+      shortcut_mismatch+=("$bundle_name=${bundle_shortcut}")
+      echo "WARN app-shortcut[${bundle_name}]: ${bundle_shortcut} (expected ${expected_nsui})"
+    else
+      echo "WARN app-shortcut[${bundle_name}]: ${bundle_shortcut} (service binding missing)"
+    fi
+  done
+
+  if [[ -z "$current_eq" && ${#shortcut_present[@]} -gt 0 ]]; then
+    echo "WARN state: app shortcuts exist but Service binding is missing in pbs.plist"
+  elif [[ -n "$current_eq" && ${#shortcut_match[@]} == 0 ]]; then
+    echo "WARN state: Service binding exists but terminal app shortcuts are missing or mismatched"
+  elif [[ ${#shortcut_mismatch[@]} -gt 0 ]]; then
+    echo "WARN state: some terminal app shortcuts differ from the Service binding"
   fi
 
   return "$has_error"

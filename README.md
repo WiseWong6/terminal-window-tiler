@@ -124,6 +124,7 @@ mkdir -p ~/.local/bin
 - 默认绑定：`ctrl+command+t`
 - Zone 选择器默认绑定：`ctrl+command+shift+t`
 - 若冲突：终端会提示输入新组合（如 `cmd+shift+t`），或输入 `skip` 跳过
+- 若安装阶段无法绑定 zone 快捷键，脚本会明确提示修复命令，不再静默跳过
 
 ```bash
 # 查看快捷键状态
@@ -141,8 +142,10 @@ terminal-tile-hotkey zone-uninstall
 
 说明：
 - `ctrl+command+t` 直接执行默认全屏整理
-- `ctrl+command+shift+t` 会弹出 `zl2/zl3/zl4/zr2/zr3/zr4` 选择器，然后立即执行
+- `ctrl+command+shift+t` 会弹出带中文说明的分区选择器，然后立即执行
+- 选项文案为：`zl2 - 左边分屏 2 分之 1`、`zl3 - 左边分屏 3 分之 1`、`zl4 - 左边分屏 4 分之 1`、`zr2 - 右边分屏 2 分之 1`、`zr3 - 右边分屏 3 分之 1`、`zr4 - 右边分屏 4 分之 1`
 - 这两个 Service 都只会在当前前台应用是 iTerm2 / Terminal / Ghostty 时生效
+- `status` / `zone-status` 会分别显示 Service 绑定（`pbs.plist`）和各终端 app 的快捷键同步状态；如果只看到 app shortcut，没有 Service binding，说明热键还没真正注册成功
 
 ### 命令触发
 
@@ -180,6 +183,7 @@ zr2
 说明：
 - `tile` 是统一 CLI；不带参数时等价于默认全屏整理
 - `zl2/zl3/zl4` 对应左侧分区；`zr2/zr3/zr4` 对应右侧分区
+- Zone 选择器里会显示对应中文说明，便于直接按视觉含义选择
 - `zl2..zr4` 仍可直接使用，只是内部改为转发到 `tile`
 - 这些命令只移动终端窗口，不会移动浏览器、微信等非终端窗口
 - 终端区内：每列最多 `4` 个窗口，超出的窗口会自动分配到相邻列
