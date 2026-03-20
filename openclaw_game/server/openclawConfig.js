@@ -1,11 +1,9 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
-
-const openclawHome = path.join(os.homedir(), '.openclaw');
-const configPath = path.join(openclawHome, 'openclaw.json');
+import { getOpenclawHome, getResolvedDataMode } from './dataMode.js';
 
 const cache = {
+  mode: '',
   fingerprint: '',
   feishuAccounts: [],
   agents: [],
@@ -32,12 +30,27 @@ function getFileFingerprintPart(filePath) {
 }
 
 function resolveAgentWorkspace(agentEntry) {
+  const openclawHome = getOpenclawHome();
   return agentEntry?.workspace || path.join(openclawHome, 'agents', agentEntry?.id || 'unknown');
 }
 
 function refreshCacheIfNeeded() {
+  const mode = getResolvedDataMode();
+  if (mode !== 'live') {
+    cache.mode = mode;
+    cache.fingerprint = '';
+    cache.feishuAccounts = [];
+    cache.agents = [];
+    cache.agentById = new Map();
+    cache.accountNameById = new Map();
+    return;
+  }
+
+  const openclawHome = getOpenclawHome();
+  const configPath = path.join(openclawHome, 'openclaw.json');
   const rootConfig = readJsonIfExists(configPath);
   if (!rootConfig) {
+    cache.mode = mode;
     cache.fingerprint = '';
     cache.feishuAccounts = [];
     cache.agents = [];
@@ -54,7 +67,7 @@ function refreshCacheIfNeeded() {
   });
 
   const fingerprint = fingerprintParts.join('|');
-  if (cache.fingerprint === fingerprint) {
+  if (cache.fingerprint === fingerprint && cache.mode === mode) {
     return;
   }
 
@@ -90,6 +103,7 @@ function refreshCacheIfNeeded() {
       .map(([accountId, value]) => [accountId, String(value?.name || accountId)])
   );
 
+  cache.mode = mode;
   cache.fingerprint = fingerprint;
   cache.agents = agents;
   cache.agentById = agentById;

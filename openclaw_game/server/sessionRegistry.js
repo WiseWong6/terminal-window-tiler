@@ -65,6 +65,20 @@ function inferChannelFromMetadata(value) {
   return null;
 }
 
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function firstNumber(...values) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
 export function parseSessionKey(sessionKey) {
   const value = String(sessionKey || '');
   const match = value.match(/^agent:([^:]+):(.*)$/);
@@ -72,18 +86,38 @@ export function parseSessionKey(sessionKey) {
     return {
       agentId: null,
       route: value,
+      kind: 'other',
+      subagentId: null,
     };
   }
 
+  const route = match[2] || '';
+  const subagentMatch = route.match(/^subagent:([^:]+)$/);
+
   return {
     agentId: match[1] || null,
-    route: match[2] || '',
+    route,
+    kind: subagentMatch ? 'subagent' : 'agent',
+    subagentId: subagentMatch?.[1] || null,
   };
+}
+
+export function sessionKindFromSessionKey(sessionKey) {
+  const { agentId, route, kind } = parseSessionKey(sessionKey);
+  if (!route) return 'other';
+  if (kind === 'subagent') return 'subagent';
+  if (route === 'main') return agentId === 'main' ? 'heartbeat' : 'main';
+  if (route.startsWith('cron:') || route.startsWith('run:')) return 'cron';
+  if (/^tui-/.test(route) || route.startsWith('webchat:')) return 'direct';
+  if (route.startsWith('direct:') || route.startsWith('feishu:direct:')) return 'direct';
+  if (route.startsWith('feishu:group:')) return 'group';
+  return 'other';
 }
 
 export function channelFromSessionKey(sessionKey) {
   const { agentId, route } = parseSessionKey(sessionKey);
   if (!route) return 'unknown';
+  if (route.startsWith('subagent:')) return 'internal';
   if (route === 'main') return agentId === 'main' ? 'heartbeat' : 'unknown';
   if (route.startsWith('cron:')) return 'cron';
   if (/^tui-/.test(route)) return 'tui';
@@ -105,6 +139,7 @@ export function matchesChannelFilter(sessionChannel, filterChannel) {
 function buildMetadata(sessionKey, value, agent) {
   const parsedKey = parseSessionKey(sessionKey);
   const sessionKeyChannel = channelFromSessionKey(sessionKey);
+  const sessionKind = sessionKindFromSessionKey(sessionKey);
   const inferredChannel = inferChannelFromMetadata(value);
   const agentId = parsedKey.agentId || agent?.id || null;
   const linkedAgent = getAgentById(agentId) || agent || null;
@@ -113,6 +148,25 @@ function buildMetadata(sessionKey, value, agent) {
   const filePath = value?.sessionFile || (linkedAgent?.sessionDir && value?.sessionId
     ? path.join(linkedAgent.sessionDir, `${value.sessionId}.jsonl`)
     : null);
+
+  const parentSessionKey = firstString(
+    value?.parentSessionKey,
+    value?.parent?.sessionKey,
+    value?.spawnedFrom?.sessionKey,
+    value?.origin?.sessionKey,
+    value?.request?.parentSessionKey
+  );
+  const parentSessionId = firstString(
+    value?.parentSessionId,
+    value?.parent?.sessionId,
+    value?.spawnedFrom?.sessionId,
+    value?.request?.parentSessionId
+  );
+  const depth = firstNumber(
+    value?.depth,
+    value?.spawnDepth,
+    value?.parentDepth
+  );
 
   return {
     sessionKey,
@@ -126,9 +180,14 @@ function buildMetadata(sessionKey, value, agent) {
     deliveryContext: value?.deliveryContext || null,
     lastChannel: value?.lastChannel || null,
     lastAccountId: value?.lastAccountId || null,
+    sessionKind,
+    isSubagent: sessionKind === 'subagent',
     channel: sessionKeyChannel === 'unknown' ? (inferredChannel || 'unknown') : sessionKeyChannel,
     filePath: filePath ? path.resolve(filePath) : null,
     updatedAt: value?.updatedAt || null,
+    parentSessionKey,
+    parentSessionId,
+    depth,
   };
 }
 
@@ -225,8 +284,13 @@ export function listActiveSessionFiles(options = {}) {
         accountId: metadata?.accountId || agent.feishuAccountId || null,
         accountName: metadata?.accountName || agent.accountName || null,
         channel: metadata?.channel || 'unknown',
+        sessionKind: metadata?.sessionKind || 'other',
+        isSubagent: metadata?.isSubagent || false,
         sessionKey: metadata?.sessionKey || null,
         label: metadata?.label || null,
+        parentSessionKey: metadata?.parentSessionKey || null,
+        parentSessionId: metadata?.parentSessionId || null,
+        depth: metadata?.depth || null,
       });
     }
   }
@@ -249,8 +313,13 @@ export function findSessionFileById(sessionId) {
       accountId: metadata.accountId,
       accountName: metadata.accountName,
       channel: metadata.channel,
+      sessionKind: metadata.sessionKind,
+      isSubagent: metadata.isSubagent,
       sessionKey: metadata.sessionKey,
       label: metadata.label,
+      parentSessionKey: metadata.parentSessionKey,
+      parentSessionId: metadata.parentSessionId,
+      depth: metadata.depth,
     };
   }
 

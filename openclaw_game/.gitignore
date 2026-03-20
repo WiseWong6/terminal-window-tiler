@@ -1,6 +1,7 @@
 # Logs
 logs/
 *.log
+openclaw_game/logs/
 
 # OS files
 .DS_Store
@@ -18,11 +19,15 @@ Thumbs.db
 
 # Node.js
 node_modules/
-package-lock.json
 
 # Database
 openclawd.db
+openclaw_game/openclawd.db
 
 # Tool metadata
 .claude/
+openclaw_game/.claude/
 
+# Playwright cache
+.playwright-mcp/
+openclaw_game/.playwright-mcp/

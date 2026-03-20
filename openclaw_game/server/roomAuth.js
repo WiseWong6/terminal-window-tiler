@@ -1,7 +1,8 @@
 import { getDb } from './db.js';
+import { getAdminToken, getReadonlyToken } from './dataMode.js';
 
-const DEFAULT_ADMIN_TOKEN = process.env.OPENCLAWD_ADMIN_TOKEN || 'admin-demo-token';
-const DEFAULT_READONLY_TOKEN = process.env.OPENCLAWD_READONLY_TOKEN || 'readonly-demo-token';
+const DEFAULT_ADMIN_TOKEN = getAdminToken();
+const DEFAULT_READONLY_TOKEN = getReadonlyToken();
 
 function getTokenFromAuthHeader(request) {
     const header = request.headers.get?.('authorization') || request.headers.get?.('Authorization') ||

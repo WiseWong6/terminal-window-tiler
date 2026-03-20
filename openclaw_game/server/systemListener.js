@@ -181,6 +181,7 @@ function buildSessionEvent(line, filePath) {
     const resolvedAgentId = canonical?.agentId || 'main';
     const resolvedAgentDisplayName = canonical?.agentDisplayName || resolvedAgentId;
     const channel = canonical?.channel || detectSessionChannelFallback(parsed);
+    const sessionKind = canonical?.sessionKind || 'other';
     const accountId = canonical?.accountId || null;
     const timestamp = parseTimestamp(parsed.timestamp || parsed.message.timestamp);
 
@@ -204,6 +205,8 @@ function buildSessionEvent(line, filePath) {
                 channel,
                 role: 'user',
                 sessionId,
+                sessionKey: canonical?.sessionKey || null,
+                sessionKind,
                 accountId,
                 content: fullContent, // 添加完整 content
             },
@@ -232,6 +235,8 @@ function buildSessionEvent(line, filePath) {
                 channel,
                 role: 'assistant',
                 sessionId,
+                sessionKey: canonical?.sessionKey || null,
+                sessionKind,
                 accountId,
                 content: fullContent, // 添加完整 content
             },
@@ -261,6 +266,8 @@ function buildSessionEvent(line, filePath) {
                 toolName,
                 skill: toolName,
                 sessionId,
+                sessionKey: canonical?.sessionKey || null,
+                sessionKind,
                 accountId,
                 content: fullContent, // 添加完整 content
             },
