@@ -203,8 +203,16 @@ normalize_scope() {
 }
 
 detect_invoking_terminal() {
+  local explicit_app="${TILE_INVOKING_TERMINAL_APP:-}"
   local term_program="${TERM_PROGRAM:-}"
   local bundle_id="${__CFBundleIdentifier:-}"
+
+  case "$explicit_app" in
+    iTerm2|Terminal|Ghostty)
+      echo "$explicit_app"
+      return 0
+      ;;
+  esac
 
   case "$term_program" in
     iTerm.app)
@@ -264,6 +272,8 @@ fi
 # Zone mode always uses full multi-terminal mode.
 if [[ -n "$TILE_ZONE_LAYOUT" ]]; then
   TILE_MODE=""
+elif [[ -z "$TILE_MODE" && "$TILE_SCOPE_VALUE" == "current" && "$INVOKING_TERMINAL_APP" == "iTerm2" ]]; then
+  TILE_MODE="iterm_fast"
 fi
 
 if [[ "$TILE_MODE" == "iterm_fast" ]]; then

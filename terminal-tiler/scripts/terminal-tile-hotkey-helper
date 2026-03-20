@@ -1,0 +1,202 @@
+#!/usr/bin/env swift
+
+import AppKit
+import Foundation
+
+enum HelperError: Error, CustomStringConvertible {
+  case invalidInput(String)
+  case commandNotFound(String)
+
+  var description: String {
+    switch self {
+    case .invalidInput(let message):
+      return message
+    case .commandNotFound(let name):
+      return "\(name) 未找到，请先运行 scripts/install-agent-commands。"
+    }
+  }
+}
+
+struct ZoneChoice {
+  let key: String
+  let label: String
+}
+
+let supportedBundles: [String: String] = [
+  "com.googlecode.iterm2": "iTerm2",
+  "com.apple.Terminal": "Terminal",
+  "com.mitchellh.ghostty": "Ghostty",
+]
+
+let zoneChoices: [ZoneChoice] = [
+  ZoneChoice(key: "zl2", label: "zl2 - 左边分屏 2 分之 1"),
+  ZoneChoice(key: "zl3", label: "zl3 - 左边分屏 3 分之 1"),
+  ZoneChoice(key: "zl4", label: "zl4 - 左边分屏 4 分之 1"),
+  ZoneChoice(key: "zr2", label: "zr2 - 右边分屏 2 分之 1"),
+  ZoneChoice(key: "zr3", label: "zr3 - 右边分屏 3 分之 1"),
+  ZoneChoice(key: "zr4", label: "zr4 - 右边分屏 4 分之 1"),
+]
+
+func stderr(_ text: String) {
+  FileHandle.standardError.write(Data((text + "\n").utf8))
+}
+
+func normalizedFrontmostTerminalApp() -> String? {
+  guard let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else {
+    return nil
+  }
+  return supportedBundles[bundleID]
+}
+
+func resolveCommand(_ helperName: String) -> String? {
+  let homeCommand = (NSHomeDirectory() as NSString).appendingPathComponent(".local/bin/\(helperName)")
+  if FileManager.default.isExecutableFile(atPath: homeCommand) {
+    return homeCommand
+  }
+
+  let scriptDir = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent().path
+  let localPath = (scriptDir as NSString).appendingPathComponent(helperName)
+  if FileManager.default.isExecutableFile(atPath: localPath) {
+    return localPath
+  }
+
+  let pathEntries = (ProcessInfo.processInfo.environment["PATH"] ?? "")
+    .split(separator: ":")
+    .map(String.init)
+  for entry in pathEntries {
+    let candidate = (entry as NSString).appendingPathComponent(helperName)
+    if FileManager.default.isExecutableFile(atPath: candidate) {
+      return candidate
+    }
+  }
+
+  return nil
+}
+
+func runCommand(path: String, args: [String], extraEnvironment: [String: String] = [:]) throws -> Never {
+  let process = Process()
+  process.executableURL = URL(fileURLWithPath: path)
+  process.arguments = args
+
+  var env = ProcessInfo.processInfo.environment
+  env["TILE_SKIP_HOTKEY_BOOTSTRAP"] = "1"
+  for (key, value) in extraEnvironment {
+    env[key] = value
+  }
+  process.environment = env
+  process.standardInput = FileHandle.standardInput
+  process.standardOutput = FileHandle.standardOutput
+  process.standardError = FileHandle.standardError
+
+  try process.run()
+  process.waitUntilExit()
+  exit(process.terminationStatus)
+}
+
+func pickZoneInteractively() -> String? {
+  let app = NSApplication.shared
+  app.setActivationPolicy(.accessory)
+  app.activate(ignoringOtherApps: true)
+
+  let alert = NSAlert()
+  alert.messageText = "Terminal Tile Zone"
+  alert.informativeText = "选择终端分区布局"
+  alert.addButton(withTitle: "执行")
+  alert.addButton(withTitle: "取消")
+
+  let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 30), pullsDown: false)
+  popup.addItems(withTitles: zoneChoices.map(\.label))
+  popup.selectItem(at: 0)
+  alert.accessoryView = popup
+
+  let response = alert.runModal()
+  guard response == .alertFirstButtonReturn else {
+    return nil
+  }
+
+  let index = popup.indexOfSelectedItem
+  guard zoneChoices.indices.contains(index) else {
+    return nil
+  }
+  return zoneChoices[index].key
+}
+
+func commandFrontmostApp() {
+  if let app = normalizedFrontmostTerminalApp() {
+    print(app)
+  }
+}
+
+func commandPickZone() {
+  guard normalizedFrontmostTerminalApp() != nil else {
+    return
+  }
+  if let zone = pickZoneInteractively() {
+    print(zone)
+  }
+}
+
+func commandRun(mode: String) throws -> Never {
+  guard let invokingApp = normalizedFrontmostTerminalApp() else {
+    exit(0)
+  }
+
+  let commandPath = resolveCommand("terminal-tile-all") ?? resolveCommand("tile")
+  guard let commandPath else {
+    throw HelperError.commandNotFound("terminal-tile-all")
+  }
+
+  switch mode {
+  case "full":
+    try runCommand(
+      path: commandPath,
+      args: [],
+      extraEnvironment: ["TILE_INVOKING_TERMINAL_APP": invokingApp]
+    )
+  case "zone":
+    guard let zone = pickZoneInteractively() else {
+      exit(0)
+    }
+    try runCommand(
+      path: commandPath,
+      args: [zone],
+      extraEnvironment: ["TILE_INVOKING_TERMINAL_APP": invokingApp]
+    )
+  default:
+    throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper [frontmost-app|pick-zone|run full|run zone]")
+  }
+}
+
+func main() throws {
+  let args = Array(CommandLine.arguments.dropFirst())
+  guard let command = args.first else {
+    throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper [frontmost-app|pick-zone|run full|run zone]")
+  }
+
+  switch command {
+  case "frontmost-app":
+    guard args.count == 1 else {
+      throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper frontmost-app")
+    }
+    commandFrontmostApp()
+  case "pick-zone":
+    guard args.count == 1 else {
+      throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper pick-zone")
+    }
+    commandPickZone()
+  case "run":
+    guard args.count == 2 else {
+      throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper run [full|zone]")
+    }
+    try commandRun(mode: args[1])
+  default:
+    throw HelperError.invalidInput("Usage: terminal-tile-hotkey-helper [frontmost-app|pick-zone|run full|run zone]")
+  }
+}
+
+do {
+  try main()
+} catch {
+  stderr(String(describing: error))
+  exit(1)
+}

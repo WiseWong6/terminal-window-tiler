@@ -277,7 +277,18 @@ create_runner() {
 
   case "$CURRENT_RUNNER_MODE" in
     full)
-      runner_body=$(cat <<'EOF'
+      if [[ -x "${BIN_DIR}/terminal-tile-hotkey-helper" ]]; then
+        runner_body=$(cat <<'EOF'
+#!/bin/zsh
+# managed-by=terminal-window-tiler
+
+set -u
+
+exec "$HOME/.local/bin/terminal-tile-hotkey-helper" run full
+EOF
+)
+      else
+        runner_body=$(cat <<'EOF'
 #!/bin/zsh
 # managed-by=terminal-window-tiler
 
@@ -313,9 +324,21 @@ echo "tile 未找到，请先安装到 ~/.local/bin/tile。" >&2
 exit 1
 EOF
 )
+      fi
       ;;
     zone)
-      runner_body=$(cat <<'EOF'
+      if [[ -x "${BIN_DIR}/terminal-tile-hotkey-helper" ]]; then
+        runner_body=$(cat <<'EOF'
+#!/bin/zsh
+# managed-by=terminal-window-tiler
+
+set -u
+
+exec "$HOME/.local/bin/terminal-tile-hotkey-helper" run zone
+EOF
+)
+      else
+        runner_body=$(cat <<'EOF'
 #!/bin/zsh
 # managed-by=terminal-window-tiler
 
@@ -343,6 +366,7 @@ echo "terminal-tile-zone-picker 未找到，请先安装到 ~/.local/bin/termina
 exit 1
 EOF
 )
+      fi
       ;;
   esac
 
@@ -858,6 +882,17 @@ cmd_status() {
   else
     echo "ERROR command missing"
     has_error=1
+  fi
+
+  local helper_path="${BIN_DIR}/terminal-tile-hotkey-helper"
+  if [[ -x "$helper_path" ]]; then
+    if [[ -f "$CURRENT_RUNNER_PATH" ]] && grep -q "terminal-tile-hotkey-helper" "$CURRENT_RUNNER_PATH" 2>/dev/null; then
+      echo "OK helper: ${helper_path} (compiled helper active)"
+    else
+      echo "WARN helper: ${helper_path} (installed but runner is using legacy fallback)"
+    fi
+  else
+    echo "WARN helper: missing (legacy runner fallback)"
   fi
 
   local current_eq current_combo

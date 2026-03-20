@@ -173,6 +173,9 @@ TILE_DEBUG=1 terminal-tile-all
 TILE_MODE=iterm_fast terminal-tile-all
 ```
 
+- The hotkey path prefers the compiled `terminal-tile-hotkey-helper` to avoid duplicate frontmost-app detection
+- For `TILE_SCOPE=current` in iTerm2, the hotkey flow now auto-enables the fast path
+
 ---
 
 ## Layout Policy

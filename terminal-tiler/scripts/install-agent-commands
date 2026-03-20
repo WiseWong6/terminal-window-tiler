@@ -28,6 +28,8 @@ EOF
 install_bin_scripts() {
   mkdir -p "$BIN_DIR"
 
+  install_hotkey_helper || true
+
   local name
   for name in \
     terminal-tile-all \
@@ -40,6 +42,46 @@ install_bin_scripts() {
   done
 
   install_ghostty_helper
+}
+
+install_hotkey_helper() {
+  local source_path="${REPO_ROOT}/scripts/terminal-tile-hotkey-helper"
+  local target_path="${BIN_DIR}/terminal-tile-hotkey-helper"
+  local swiftc_cmd=""
+  local compile_source=""
+  local cleanup_source=0
+
+  if command -v swiftc >/dev/null 2>&1; then
+    swiftc_cmd="$(command -v swiftc)"
+  elif command -v xcrun >/dev/null 2>&1; then
+    swiftc_cmd="$(xcrun --find swiftc 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$swiftc_cmd" ]]; then
+    compile_source="$source_path"
+    if head -n 1 "$source_path" | grep -q '^#!'; then
+      compile_source="$(mktemp "${TMPDIR:-/tmp}/terminal-tile-hotkey-helper.XXXXXX.swift")"
+      cleanup_source=1
+      tail -n +2 "$source_path" > "$compile_source"
+    fi
+
+    if "$swiftc_cmd" -O "$compile_source" -o "$target_path"; then
+      chmod 0755 "$target_path"
+      if (( cleanup_source == 1 )); then
+        rm -f "$compile_source"
+      fi
+      echo "OK bin: ${target_path} (compiled)"
+      return 0
+    fi
+
+    if (( cleanup_source == 1 )); then
+      rm -f "$compile_source"
+    fi
+  fi
+
+  rm -f "$target_path"
+  echo "WARN: swiftc 编译 terminal-tile-hotkey-helper 失败，热键将回退为 legacy runner。" >&2
+  return 1
 }
 
 install_ghostty_helper() {

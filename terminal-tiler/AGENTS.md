@@ -19,6 +19,7 @@ Primary user goal:
 - Zone wrappers: `zl2`, `zl3`, `zl4`, `zr2`, `zr3`, `zr4`
 - Main implementation: `scripts/terminal-tile-all`
 - Ghostty helper: `scripts/ghostty-window-helper`
+- Hotkey helper: `scripts/terminal-tile-hotkey-helper`
 - Installer: `scripts/install-agent-commands`
 - Hotkey manager: `scripts/terminal-tile-hotkey`
 - Zone chooser: `scripts/terminal-tile-zone-picker`
@@ -70,6 +71,7 @@ What it installs:
 - Codex prompts in `~/.codex/prompts`
 - OpenClaw skills in `~/.openclaw/workspace/skills`
 - hotkeys via `terminal-tile-hotkey`
+- compiled hotkey helper binary when `swiftc` is available
 - compiled Ghostty helper binary
 
 ## Configuration Model
