@@ -28,6 +28,8 @@
 
 ## 快速开始 | Quick Start
 
+这是 `wise-labs` 仓库里的一个子项目，安装脚本在当前目录的 `scripts/` 里；如果你现在人在仓库根目录，先执行 `cd terminal-tiler`。
+
 ```bash
 git clone https://github.com/WiseWong6/wise-labs.git
 cd wise-labs/terminal-tiler
@@ -107,6 +109,8 @@ mkdir -p ~/.local/bin
 
 仅适用于 macOS / MacBook 工作流；如果你主要在 Windows 上使用终端，这个项目还不具备这个能力，当然你可以去改造这份代码。
 
+说明：安装脚本路径是 `terminal-tiler/scripts/install-agent-commands`，不是仓库根目录的 `./scripts/install-agent-commands`。
+
 ```bash
 git clone https://github.com/WiseWong6/wise-labs.git
 cd wise-labs/terminal-tiler
@@ -142,8 +146,8 @@ terminal-tile-hotkey zone-uninstall
 
 说明：
 - `ctrl+command+t` 直接执行默认全屏整理
-- `ctrl+command+shift+t` 会弹出带中文说明的分区选择器，然后立即执行
-- 选项文案为：`zl2-左 1/2`、`zl3-左 1/3`、`zl4-左 1/4`、`zr2-右 1/2`、`zr3-右 1/3`、`zr4-右 1/4`
+- `ctrl+command+shift+t` 会弹出原生 macOS 风格的分区选择器：白底、traffic lights 标题栏、双列细边框按钮，然后立即执行
+- 选项文案为：`zl2 - 左 1/2`、`zl3 - 左 1/3`、`zl4 - 左 1/4`、`zr2 - 右 1/2`、`zr3 - 右 1/3`、`zr4 - 右 1/4`
 - 这两个热键只会在当前前台应用是 iTerm2 / Terminal / Ghostty 时生效
 - `status` / `zone-status` 会显示 app bundle、LaunchAgent、辅助功能授权和当前组合键状态
 
@@ -183,7 +187,7 @@ zr2
 说明：
 - `tile` 是统一 CLI；不带参数时等价于默认全屏整理
 - `zl2/zl3/zl4` 对应左侧分区；`zr2/zr3/zr4` 对应右侧分区
-- Zone 选择器里会显示对应中文说明，便于直接按视觉含义选择
+- Zone 选择器里会以双列按钮显示这些选项，便于直接按视觉含义选择
 - `zl2..zr4` 仍可直接使用，只是内部改为转发到 `tile`
 - 这些命令只移动终端窗口，不会移动浏览器、微信等非终端窗口
 - 终端区内：每列最多 `4` 个窗口，超出的窗口会自动分配到相邻列

@@ -26,6 +26,8 @@
 
 ## Quick Start
 
+This is a subproject inside the `wise-labs` repo. The installer lives in this directory's `scripts/` folder, so if you are at the repo root, run `cd terminal-tiler` first.
+
 ```bash
 git clone https://github.com/WiseWong6/wise-labs.git
 cd wise-labs/terminal-tiler
@@ -90,6 +92,8 @@ Manual resizing works, but it breaks flow every time.
 
 This project is intentionally built for macOS and MacBook-style terminal workflows. If you mainly work on Windows, this project does not support that workflow yet, though you are free to adapt the code yourself.
 
+Note: the installer path is `terminal-tiler/scripts/install-agent-commands`, not `./scripts/install-agent-commands` from the repo root.
+
 ```bash
 git clone https://github.com/WiseWong6/wise-labs.git
 cd wise-labs/terminal-tiler
@@ -121,8 +125,8 @@ terminal-tile-hotkey zone-uninstall
 Notes:
 
 - `ctrl+command+t` runs the default full-screen tiling flow
-- `ctrl+command+shift+t` opens the zone picker with labeled options and runs immediately
-- Picker labels are `zl2-左 1/2`, `zl3-左 1/3`, `zl4-左 1/4`, `zr2-右 1/2`, `zr3-右 1/3`, and `zr4-右 1/4`
+- `ctrl+command+shift+t` opens a native macOS-style zone picker with a white panel, traffic lights, and a two-column button grid, then runs immediately
+- Picker labels are `zl2 - 左 1/2`, `zl3 - 左 1/3`, `zl4 - 左 1/4`, `zr2 - 右 1/2`, `zr3 - 右 1/3`, and `zr4 - 右 1/4`
 - Both hotkeys are handled by a per-user LaunchAgent that runs `Terminal Tile Hotkeys.app`
 - `status` and `zone-status` report the app bundle, LaunchAgent, Accessibility grant, and combo state directly
 

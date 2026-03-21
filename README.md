@@ -18,10 +18,14 @@
 
 - 一键整理 2~10 个终端窗口，按显示器分组平铺
 - 支持分区模式，给浏览器/微信留出固定区域
+- 分区热键会弹出原生 macOS 风格选择器，直接选 `zl2` 到 `zr4`
 - 支持 iTerm2 / Terminal / Ghostty 混用
 - 可在 Claude Code / Codex / OpenClaw 中直接使用
 
 **Quick Start:**
+
+`wise-labs` 是多项目仓库，`terminal-tiler` 的安装脚本在子目录里。
+
 ```bash
 git clone https://github.com/WiseWong6/wise-labs.git
 cd wise-labs/terminal-tiler

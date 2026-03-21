@@ -33,12 +33,12 @@ struct ZoneChoice {
 }
 
 let hotkeyZoneChoices: [ZoneChoice] = [
-  ZoneChoice(key: "zl2", label: "zl2-左 1/2"),
-  ZoneChoice(key: "zl3", label: "zl3-左 1/3"),
-  ZoneChoice(key: "zl4", label: "zl4-左 1/4"),
-  ZoneChoice(key: "zr2", label: "zr2-右 1/2"),
-  ZoneChoice(key: "zr3", label: "zr3-右 1/3"),
-  ZoneChoice(key: "zr4", label: "zr4-右 1/4"),
+  ZoneChoice(key: "zl2", label: "zl2 - 左 1/2"),
+  ZoneChoice(key: "zl3", label: "zl3 - 左 1/3"),
+  ZoneChoice(key: "zl4", label: "zl4 - 左 1/4"),
+  ZoneChoice(key: "zr2", label: "zr2 - 右 1/2"),
+  ZoneChoice(key: "zr3", label: "zr3 - 右 1/3"),
+  ZoneChoice(key: "zr4", label: "zr4 - 右 1/4"),
 ]
 
 func hotkeyAppLog(_ message: String) {
@@ -46,11 +46,35 @@ func hotkeyAppLog(_ message: String) {
   FileHandle.standardError.write(Data(line.utf8))
 }
 
+final class ZonePickerPanel: NSPanel {
+  var onCancel: (() -> Void)?
+
+  override func cancelOperation(_ sender: Any?) {
+    onCancel?()
+  }
+}
+
 final class ZoneChoiceButton: NSButton {
-  private let baseFill = NSColor.controlBackgroundColor.withAlphaComponent(0.82)
-  private let hoverFill = NSColor.controlAccentColor.withAlphaComponent(0.14)
-  private let pressedFill = NSColor.controlAccentColor.withAlphaComponent(0.22)
-  private let borderColor = NSColor.separatorColor.withAlphaComponent(0.65)
+  private let displayTitle: String
+  private let idleBackground = NSColor.white
+  private let hoverBackground = NSColor(
+    srgbRed: 0 / 255,
+    green: 122 / 255,
+    blue: 255 / 255,
+    alpha: 1
+  )
+  private let pressedBackground = NSColor(
+    srgbRed: 0 / 255,
+    green: 104 / 255,
+    blue: 218 / 255,
+    alpha: 1
+  )
+  private let idleBorder = NSColor(
+    srgbRed: 209 / 255,
+    green: 209 / 255,
+    blue: 214 / 255,
+    alpha: 1
+  )
   private var trackingAreaRef: NSTrackingArea?
   private var hovered = false {
     didSet { updateAppearance() }
@@ -61,6 +85,7 @@ final class ZoneChoiceButton: NSButton {
   }
 
   init(choice: ZoneChoice, target: AnyObject?, action: Selector?) {
+    self.displayTitle = choice.label
     super.init(frame: .zero)
     identifier = NSUserInterfaceItemIdentifier(choice.key)
     title = choice.label
@@ -69,12 +94,17 @@ final class ZoneChoiceButton: NSButton {
     isBordered = false
     focusRingType = .none
     bezelStyle = .regularSquare
-    font = .systemFont(ofSize: 14, weight: .semibold)
-    contentTintColor = .labelColor
     keyEquivalent = ""
     wantsLayer = true
-    layer?.cornerRadius = 12
+    layer?.cornerRadius = 8
     layer?.borderWidth = 1
+    layer?.shadowColor = NSColor(
+      srgbRed: 0 / 255,
+      green: 122 / 255,
+      blue: 255 / 255,
+      alpha: 1
+    ).cgColor
+    cell?.alignment = .center
     updateAppearance()
   }
 
@@ -112,34 +142,66 @@ final class ZoneChoiceButton: NSButton {
 
   private func updateAppearance() {
     let fill: NSColor
+    let border: NSColor
+    let textColor: NSColor
+
     if isHighlighted {
-      fill = pressedFill
+      fill = pressedBackground
+      border = pressedBackground
+      textColor = .white
+      layer?.shadowOpacity = 0.18
+      layer?.shadowRadius = 8
+      layer?.shadowOffset = NSSize(width: 0, height: -2)
     } else if hovered {
-      fill = hoverFill
+      fill = hoverBackground
+      border = hoverBackground
+      textColor = .white
+      layer?.shadowOpacity = 0.16
+      layer?.shadowRadius = 8
+      layer?.shadowOffset = NSSize(width: 0, height: -2)
     } else {
-      fill = baseFill
+      fill = idleBackground
+      border = idleBorder
+      textColor = NSColor(
+        srgbRed: 26 / 255,
+        green: 26 / 255,
+        blue: 26 / 255,
+        alpha: 1
+      )
+      layer?.shadowOpacity = 0
+      layer?.shadowRadius = 0
+      layer?.shadowOffset = .zero
     }
+
+    let attributes: [NSAttributedString.Key: Any] = [
+      .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+      .foregroundColor: textColor,
+    ]
+    attributedTitle = NSAttributedString(string: displayTitle, attributes: attributes)
     layer?.backgroundColor = fill.cgColor
-    layer?.borderColor = borderColor.cgColor
+    layer?.borderColor = border.cgColor
   }
 }
 
 final class ZonePickerController: NSObject, NSWindowDelegate {
   private let application: NSApplication
-  private let panel: NSPanel
+  private let panel: ZonePickerPanel
   private var selectedKey: String?
 
   init(application: NSApplication, choices: [ZoneChoice]) {
     self.application = application
-    self.panel = NSPanel(
-      contentRect: NSRect(x: 0, y: 0, width: 470, height: 300),
+    self.panel = ZonePickerPanel(
+      contentRect: NSRect(x: 0, y: 0, width: 360, height: 236),
       styleMask: [.titled, .closable, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
     super.init()
 
-    panel.title = "Terminal Tile Zone"
+    panel.onCancel = { [weak self] in
+      self?.cancel(nil)
+    }
+    panel.title = "选择分区布局"
     panel.titleVisibility = .hidden
     panel.titlebarAppearsTransparent = true
     panel.isMovableByWindowBackground = true
@@ -147,32 +209,49 @@ final class ZonePickerController: NSObject, NSWindowDelegate {
     panel.level = .modalPanel
     panel.delegate = self
     panel.isReleasedWhenClosed = false
+    panel.hasShadow = true
     panel.backgroundColor = .clear
+    panel.standardWindowButton(.closeButton)?.isHidden = true
+    panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
+    panel.standardWindowButton(.zoomButton)?.isHidden = true
 
-    let content = NSVisualEffectView(frame: NSRect(x: 0, y: 0, width: 470, height: 300))
-    content.material = .hudWindow
-    content.blendingMode = .behindWindow
-    content.state = .active
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 236))
     content.wantsLayer = true
-    content.layer?.cornerRadius = 18
+    content.layer?.backgroundColor = NSColor.white.cgColor
+    content.layer?.cornerRadius = 10
     content.layer?.masksToBounds = true
     panel.contentView = content
 
-    let titleLabel = NSTextField(labelWithString: "选择终端分区布局")
-    titleLabel.font = .systemFont(ofSize: 20, weight: .bold)
-    titleLabel.frame = NSRect(x: 26, y: 248, width: 260, height: 26)
+    let titleLabel = NSTextField(labelWithString: "选择分区布局")
+    titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+    titleLabel.textColor = NSColor(
+      srgbRed: 26 / 255,
+      green: 26 / 255,
+      blue: 26 / 255,
+      alpha: 1
+    )
+    titleLabel.alignment = .center
+    titleLabel.frame = NSRect(x: 52, y: 204, width: 256, height: 16)
     content.addSubview(titleLabel)
 
-    let subtitleLabel = NSTextField(labelWithString: "选择一个分区方向")
-    subtitleLabel.font = .systemFont(ofSize: 12, weight: .medium)
-    subtitleLabel.textColor = .secondaryLabelColor
-    subtitleLabel.frame = NSRect(x: 26, y: 228, width: 180, height: 18)
-    content.addSubview(subtitleLabel)
+    let closeButton = trafficLightButton(
+      color: NSColor(srgbRed: 255 / 255, green: 95 / 255, blue: 87 / 255, alpha: 1),
+      action: #selector(cancel(_:))
+    )
+    closeButton.frame.origin = NSPoint(x: 16, y: 206)
+    content.addSubview(closeButton)
 
-    let leftCard = sectionCard(frame: NSRect(x: 22, y: 64, width: 202, height: 148), title: "左对齐")
-    let rightCard = sectionCard(frame: NSRect(x: 246, y: 64, width: 202, height: 148), title: "右对齐")
-    content.addSubview(leftCard)
-    content.addSubview(rightCard)
+    let minimizeDot = trafficLightDot(
+      color: NSColor(srgbRed: 255 / 255, green: 189 / 255, blue: 46 / 255, alpha: 1)
+    )
+    minimizeDot.frame.origin = NSPoint(x: 36, y: 206)
+    content.addSubview(minimizeDot)
+
+    let maximizeDot = trafficLightDot(
+      color: NSColor(srgbRed: 40 / 255, green: 200 / 255, blue: 64 / 255, alpha: 1)
+    )
+    maximizeDot.frame.origin = NSPoint(x: 56, y: 206)
+    content.addSubview(maximizeDot)
 
     for choice in choices {
       let isLeftColumn = choice.key.hasPrefix("zl")
@@ -188,20 +267,13 @@ final class ZonePickerController: NSObject, NSWindowDelegate {
 
       let button = ZoneChoiceButton(choice: choice, target: self, action: #selector(selectZone(_:)))
       button.frame = NSRect(
-        x: isLeftColumn ? 34 : 258,
-        y: 156 - (row * 38),
-        width: 180,
+        x: isLeftColumn ? 20 : 186,
+        y: 136 - (row * 42),
+        width: 154,
         height: 34
       )
       content.addSubview(button)
     }
-
-    let cancelButton = NSButton(title: "取消", target: self, action: #selector(cancel(_:)))
-    cancelButton.frame = NSRect(x: 374, y: 20, width: 70, height: 30)
-    cancelButton.bezelStyle = .recessed
-    cancelButton.font = .systemFont(ofSize: 13, weight: .medium)
-    cancelButton.keyEquivalent = "\u{1b}"
-    content.addSubview(cancelButton)
   }
 
   func run() -> String? {
@@ -228,6 +300,8 @@ final class ZonePickerController: NSObject, NSWindowDelegate {
     application.stopModal()
   }
 
+  @objc private func ignoreTrafficLight(_ sender: Any?) {}
+
   private func centerPanelOnActiveScreen() {
     let mouseLocation = NSEvent.mouseLocation
     let targetScreen =
@@ -247,23 +321,25 @@ final class ZonePickerController: NSObject, NSWindowDelegate {
     panel.setFrameOrigin(NSPoint(x: round(originX), y: round(originY)))
   }
 
-  private func sectionCard(frame: NSRect, title: String) -> NSView {
-    let card = NSVisualEffectView(frame: frame)
-    card.material = .sidebar
-    card.blendingMode = .withinWindow
-    card.state = .active
-    card.wantsLayer = true
-    card.layer?.cornerRadius = 16
-    card.layer?.borderWidth = 1
-    card.layer?.borderColor = NSColor.separatorColor.withAlphaComponent(0.4).cgColor
+  private func trafficLightButton(color: NSColor, action: Selector?) -> NSButton {
+    let button = NSButton(title: "", target: self, action: action)
+    button.frame = NSRect(x: 0, y: 0, width: 12, height: 12)
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.focusRingType = .none
+    button.keyEquivalent = ""
+    button.wantsLayer = true
+    button.layer?.cornerRadius = 6
+    button.layer?.backgroundColor = color.cgColor
+    button.layer?.borderWidth = 0.5
+    button.layer?.borderColor = NSColor.black.withAlphaComponent(0.08).cgColor
+    return button
+  }
 
-    let header = NSTextField(labelWithString: title)
-    header.font = .systemFont(ofSize: 12, weight: .semibold)
-    header.textColor = .secondaryLabelColor
-    header.frame = NSRect(x: 14, y: frame.height - 26, width: frame.width - 28, height: 16)
-    card.addSubview(header)
-
-    return card
+  private func trafficLightDot(color: NSColor) -> NSButton {
+    let button = trafficLightButton(color: color, action: #selector(ignoreTrafficLight(_:)))
+    button.target = self
+    return button
   }
 }
 
