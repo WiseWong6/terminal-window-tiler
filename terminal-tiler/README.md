@@ -1,7 +1,7 @@
 # wise-terminal-tiler
 
 <p align="center">
-  <a href="./README.md">中文</a> | <a href="./README.en.md">English</a> | <a href="./AGENTS.md">Agent / AI</a>
+  <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
 > 一个面向 macOS 的终端窗口平铺小工具。
@@ -332,7 +332,7 @@ EOF
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs%26Date)
+[![Star History Chart](https://api.star-history.com/image?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)
 
 ---
 

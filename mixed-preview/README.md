@@ -185,15 +185,16 @@ npm run format       # Prettier 格式化
   <p>
     <a href="https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73">小红书</a> /
     <a href="https://x.com/killthewhys">Twitter(X)</a> /
-    <a href="https://github.com/WiseWong6">GitHub</a>
+    扫码关注公众号
   </p>
+  <img src="assets/wechat-wise-qr.jpg" alt="公众号歪斯二维码" width="220" />
 </div>
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs%26Date)
+[![Star History Chart](https://api.star-history.com/image?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)
 
 ---
 

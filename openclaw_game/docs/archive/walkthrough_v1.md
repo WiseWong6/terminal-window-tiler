@@ -30,4 +30,4 @@ Successfully overhauled the OpenClaw Game visualization interface with a focus o
 
 ### Git & Documentation
 - Initialized local Git repository and committed all source files.
-- Created [agent.md](file:///Users/wisewong/Documents/Developer/openclaw_game/agent.md) in the project root as a persistent progress tracker.
+- Added a project-root progress tracker during the initial implementation pass.

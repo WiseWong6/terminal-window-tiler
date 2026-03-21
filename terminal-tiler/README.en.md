@@ -1,7 +1,7 @@
 # wise-terminal-tiler
 
 <p align="center">
-  <a href="./README.en.md">English</a> | <a href="./README.md">中文</a> | <a href="./AGENTS.md">Agent / AI</a>
+  <a href="./README.en.md">English</a> | <a href="./README.md">中文</a>
 </p>
 
 > A lightweight macOS utility for terminal window tiling.
@@ -223,4 +223,4 @@ CLI execution continues to use the permissions of the terminal host you are runn
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)
+[![Star History Chart](https://api.star-history.com/image?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)

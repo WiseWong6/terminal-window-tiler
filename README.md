@@ -160,14 +160,14 @@ npm run dev
     <a href="https://x.com/killthewhys">Twitter(X)</a> /
     扫码关注公众号
   </p>
-  <img src="terminal-tiler/assets/wechat-wise-qr.jpg" alt="公众号歪斯二维码" width="220" />
+  <img src="./assets/wechat-wise-qr.jpg" alt="公众号歪斯二维码" width="220" />
 </div>
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs%26Date)
+[![Star History Chart](https://api.star-history.com/image?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)
 
 ---
 
