@@ -154,19 +154,20 @@ npm run dev
 ## 社交媒体
 
 <div align="center">
-  <p><strong>全网同名：<code>@歪斯Wise</code></strong></p>
+  <p>全网同名：<code>@歪斯Wise</code></p>
   <p>
-    <a href="https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73">小红书</a> •
-    <a href="https://x.com/killthewhys">Twitter(X)</a> •
-    <a href="https://github.com/WiseWong6">GitHub</a>
+    <a href="https://www.xiaohongshu.com/user/profile/61f3ea4f000000001000db73">小红书</a> /
+    <a href="https://x.com/killthewhys">Twitter(X)</a> /
+    扫码关注公众号
   </p>
+  <img src="terminal-tiler/assets/wechat-wise-qr.jpg" alt="公众号歪斯二维码" width="220" />
 </div>
 
 ---
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=WiseWong6/wise-labs&type=Date)](https://www.star-history.com/#WiseWong6/wise-labs%26Date)
 
 ---
 
