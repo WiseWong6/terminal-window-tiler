@@ -1,5 +1,9 @@
 # mixed-preview
 
+<p align="center">
+  <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
+</p>
+
 > 一个实时混合内容编辑器。
 >
 > 在同一个编辑器里写 Markdown、HTML、JSON、Mermaid，右边立刻看到渲染结果。
@@ -179,6 +183,7 @@ npm run format       # Prettier 格式化
     <a href="https://x.com/killthewhys">Twitter(X)</a> /
     扫码关注公众号
   </p>
+  <img src="assets/wechat-wise-qr.jpg" alt="公众号歪斯二维码" width="220" />
 </div>
 
 ---
