@@ -1,0 +1,5 @@
+{
+  "name": "Mixed Preview",
+  "description": "A real-time mixed content editor supporting Markdown, HTML, JSON, and Mermaid diagrams with instant preview and AI-powered code fixing.",
+  "requestFramePermissions": []
+}
