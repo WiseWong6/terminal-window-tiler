@@ -2,7 +2,6 @@ import React from 'react';
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   Upload,
   FileText,
   MessageSquare,
@@ -45,10 +44,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
     dispatch({ type: 'SET_ACTIVE_TASK', taskId });
   };
 
-  const handleSettingsClick = () => {
-    dispatch({ type: 'SET_SETTINGS_OPEN', open: true });
-  };
-
   const handleModeSwitch = (newMode: AppMode) => {
     if (newMode !== mode) {
       dispatch({ type: 'SET_MODE', mode: newMode });
@@ -72,13 +67,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
           title="展开侧栏"
         >
           <ChevronRight className="w-4 h-4" />
-        </button>
-        <button
-          onClick={handleSettingsClick}
-          className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-400 hover:text-slate-200 transition-all duration-150"
-          title="设置"
-        >
-          <Settings className="w-4 h-4" />
         </button>
         {mode === 'ocr' && (
           <button
@@ -108,13 +96,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onUploadClick }) => {
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={handleSettingsClick}
-            className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-400 hover:text-slate-200 transition-all duration-150"
-            title="设置"
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
           <button
             onClick={handleToggleSidebar}
             className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-400 hover:text-slate-200 transition-all duration-150"

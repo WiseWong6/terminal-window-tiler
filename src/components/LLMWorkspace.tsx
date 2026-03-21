@@ -1,12 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore, buildModelKey } from '../state/store';
 import { getTextProviderConfigs } from '../services/configAdapter';
 import { DEFAULT_TEXT_PROVIDERS } from '../constants';
-import { Task, PromptGroup } from '../types';
+import { Task, PromptGroup, VariableType, VariableMeta } from '../types';
 import { generateId } from '../utils/helpers';
 import PromptInputPanel from './PromptInputPanel';
 import ModelConfigPanel from './ModelConfigPanel';
 import PromptResultsPanel from './PromptResultsPanel';
+
+function inferVariableType(varName: string): VariableType {
+  const lower = varName.toLowerCase();
+  if (lower.includes('image') || lower.includes('img') || lower.includes('picture') || lower.includes('photo')) return 'image';
+  if (lower.includes('file') || lower.includes('doc') || lower.includes('attachment')) return 'file';
+  return 'text';
+}
 
 const LLMWorkspace: React.FC = () => {
   const { dispatch, taskQueue } = useStore();
@@ -16,8 +23,11 @@ const LLMWorkspace: React.FC = () => {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(4096);
+  const [seed, setSeed] = useState(0);
+  const [enableThinking, setEnableThinking] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [varValues, setVarValues] = useState<Record<string, string>>({});
+  const [variableMeta, setVariableMeta] = useState<Record<string, VariableMeta>>({});
 
   // Get available text models
   const textModels = useMemo(() => {
@@ -65,6 +75,45 @@ const LLMWorkspace: React.FC = () => {
     return [...found];
   }, [systemPrompt, userPrompt]);
 
+  // 自动推断变量类型
+  useEffect(() => {
+    setVariableMeta(prev => {
+      const newMeta: Record<string, VariableMeta> = {};
+      extractedVars.forEach(v => {
+        newMeta[v] = prev[v] ?? { type: inferVariableType(v) };
+      });
+      return newMeta;
+    });
+  }, [extractedVars]);
+
+  // 重命名变量：同步更新 prompts 和迁移变量值
+  const renameVariable = (oldName: string, newName: string) => {
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const tokenPattern = new RegExp(`\\{\\{\\s*${escapeRegExp(oldName)}\\s*\\}\\}`, 'g');
+
+    // 更新 prompts
+    setSystemPrompt(prev => prev.replace(tokenPattern, `{{${newName}}}`));
+    setUserPrompt(prev => prev.replace(tokenPattern, `{{${newName}}}`));
+
+    // 迁移变量值
+    setVarValues(prev => {
+      if (prev[oldName] !== undefined) {
+        const { [oldName]: _, ...rest } = prev;
+        return { ...rest, [newName]: prev[oldName] };
+      }
+      return prev;
+    });
+
+    // 迁移变量元数据
+    setVariableMeta(prev => {
+      if (prev[oldName] !== undefined) {
+        const { [oldName]: _, ...rest } = prev;
+        return { ...rest, [newName]: prev[oldName] };
+      }
+      return prev;
+    });
+  };
+
   const substituteVars = (text: string) =>
     text.replace(/\{\{([A-Za-z][A-Za-z0-9_]*)\}\}/g, (_, key) => varValues[key] ?? `{{${key}}}`);
 
@@ -106,6 +155,7 @@ const LLMWorkspace: React.FC = () => {
           pagesData: {},
           temperature,
           maxTokens,
+          seed: seed || undefined,
         };
       })
       .filter(Boolean) as Task[];
@@ -131,7 +181,10 @@ const LLMWorkspace: React.FC = () => {
       <ModelConfigPanel
         extractedVars={extractedVars}
         varValues={varValues}
+        variableMeta={variableMeta}
         onVarChange={(key, val) => setVarValues(prev => ({ ...prev, [key]: val }))}
+        onVarTypeChange={(key, type) => setVariableMeta(prev => ({ ...prev, [key]: { ...prev[key], type } }))}
+        onRenameVar={renameVariable}
         textModels={textModels}
         selectedModels={selectedModels}
         onToggleModel={(key) => setSelectedModels(prev =>
@@ -139,8 +192,12 @@ const LLMWorkspace: React.FC = () => {
         )}
         temperature={temperature}
         maxTokens={maxTokens}
+        seed={seed}
+        enableThinking={enableThinking}
         onTemperatureChange={setTemperature}
         onMaxTokensChange={setMaxTokens}
+        onSeedChange={setSeed}
+        onThinkingChange={setEnableThinking}
       />
       <PromptResultsPanel
         isRunning={isRunning}

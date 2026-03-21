@@ -81,6 +81,7 @@ export interface Task {
   tokenUsage?: { prompt: number; completion: number };
   temperature?: number;
   maxTokens?: number;
+  seed?: number;
 }
 
 // --- Provider Config ---
@@ -161,4 +162,12 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   isThinking?: boolean;
+}
+
+// --- Variable Types ---
+export type VariableType = 'text' | 'image' | 'file';
+
+export interface VariableMeta {
+  type: VariableType;
+  label?: string;
 }

@@ -15,7 +15,7 @@ export async function callTextModel(
   systemPrompt: string,
   userPrompt: string,
   signal?: AbortSignal,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; seed?: number }
 ): Promise<TextModelResult> {
   const configs = getTextProviderConfigs();
   const providerConfig = configs.find(c => c.id === providerId);
@@ -72,7 +72,7 @@ async function callOpenAICompat(
   systemPrompt: string,
   userPrompt: string,
   signal?: AbortSignal,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; seed?: number }
 ): Promise<TextModelResult> {
   const messages: Array<{ role: string; content: string }> = [];
   if (systemPrompt.trim()) {
@@ -80,19 +80,24 @@ async function callOpenAICompat(
   }
   messages.push({ role: 'user', content: userPrompt });
 
+  const body: Record<string, any> = {
+    model: modelId,
+    messages,
+    stream: false,
+    temperature: options?.temperature ?? 0.7,
+    max_tokens: options?.maxTokens ?? 4096,
+  };
+  if (options?.seed) {
+    body.seed = options.seed;
+  }
+
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      stream: false,
-      temperature: options?.temperature ?? 0.7,
-      max_tokens: options?.maxTokens ?? 4096,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
 
@@ -120,7 +125,7 @@ async function callAnthropic(
   systemPrompt: string,
   userPrompt: string,
   signal?: AbortSignal,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: { temperature?: number; maxTokens?: number; seed?: number }
 ): Promise<TextModelResult> {
   const body: any = {
     model: modelId,
@@ -131,6 +136,7 @@ async function callAnthropic(
   if (systemPrompt.trim()) {
     body.system = systemPrompt;
   }
+  // Anthropic does not support seed parameter currently
 
   const response = await fetch(`${baseUrl}/v1/messages`, {
     method: 'POST',

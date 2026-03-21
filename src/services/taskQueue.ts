@@ -207,7 +207,7 @@ export class TaskQueue {
         task.systemPrompt || '',
         task.userPrompt || '',
         controller.signal,
-        { temperature: task.temperature, maxTokens: task.maxTokens }
+        { temperature: task.temperature, maxTokens: task.maxTokens, seed: task.seed }
       );
 
       this.callbacks.updateTask(taskId, t => ({

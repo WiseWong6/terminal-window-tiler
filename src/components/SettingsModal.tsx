@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Key, Save, X, Plus, Trash2 } from 'lucide-react';
+import { Key, Save, X, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { useStore } from '../state/store';
 import {
   getAvailableOcrModels,
@@ -15,7 +15,7 @@ import {
 import { DEFAULT_TEXT_PROVIDERS } from '../constants';
 import type { RestoreMode, RestoreFormat } from '../types';
 
-type TabId = 'ocr' | 'text';
+type TabId = 'providers' | 'restore';
 
 interface TextProviderLocal {
   id: string;
@@ -30,7 +30,7 @@ interface TextProviderLocal {
 
 const SettingsModal: React.FC = () => {
   const { state, dispatch, availableProviders } = useStore();
-  const [activeTab, setActiveTab] = useState<TabId>('ocr');
+  const [activeTab, setActiveTab] = useState<TabId>('providers');
 
   // --- OCR local state ---
   const [enabledProviderIds, setEnabledProviderIds] = useState<OcrProviderId[]>(
@@ -48,8 +48,6 @@ const SettingsModal: React.FC = () => {
       return copy as Record<OcrProviderId, string[]>;
     },
   );
-  const [restoreMode, setRestoreMode] = useState<RestoreMode>(state.restoreMode);
-  const [restoreFormat, setRestoreFormat] = useState<RestoreFormat>(state.restoreFormat);
 
   // --- Text model local state ---
   const [textProviders, setTextProviders] = useState<TextProviderLocal[]>(() => {
@@ -60,7 +58,6 @@ const SettingsModal: React.FC = () => {
         isDefault: DEFAULT_TEXT_PROVIDERS.some(d => d.id === p.id),
       }));
     }
-    // Initialize from defaults
     return DEFAULT_TEXT_PROVIDERS.map(d => ({
       id: d.id,
       label: d.label,
@@ -72,6 +69,10 @@ const SettingsModal: React.FC = () => {
       isDefault: true,
     }));
   });
+
+  // --- Restore settings ---
+  const [restoreMode, setRestoreMode] = useState<RestoreMode>(state.restoreMode);
+  const [restoreFormat, setRestoreFormat] = useState<RestoreFormat>(state.restoreFormat);
 
   // Sync local state if store changes externally
   useEffect(() => {
@@ -86,11 +87,10 @@ const SettingsModal: React.FC = () => {
     setRestoreFormat(state.restoreFormat);
   }, [state.settingsOpen]);
 
-  // --- OCR handlers ---
+  // --- Handlers ---
   const toggleProvider = useCallback((providerId: OcrProviderId) => {
     setEnabledProviderIds(prev => {
       if (prev.includes(providerId)) {
-        // Don't allow disabling all providers
         if (prev.length <= 1) return prev;
         return prev.filter(id => id !== providerId);
       }
@@ -112,7 +112,6 @@ const SettingsModal: React.FC = () => {
     });
   }, []);
 
-  // --- Text provider handlers ---
   const updateTextProvider = useCallback((id: string, updates: Partial<TextProviderLocal>) => {
     setTextProviders(prev =>
       prev.map(p => (p.id === id ? { ...p, ...updates } : p)),
@@ -237,7 +236,7 @@ const SettingsModal: React.FC = () => {
       onClick={handleClose}
     >
       <div
-        className="relative w-full max-w-[560px] max-h-[85vh] bg-white rounded-2xl shadow-modal flex flex-col overflow-hidden modal-panel"
+        className="relative w-full max-w-[720px] max-h-[85vh] bg-white rounded-2xl shadow-modal flex flex-col overflow-hidden modal-panel"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -251,58 +250,58 @@ const SettingsModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Tabs - Pill segment */}
+        {/* Tabs */}
         <div className="px-6 py-3 border-b border-gray-100">
           <div className="flex bg-gray-100 rounded-lg p-0.5">
             <button
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
-                activeTab === 'ocr'
+                activeTab === 'providers'
                   ? 'bg-white text-indigo-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              onClick={() => setActiveTab('ocr')}
+              onClick={() => setActiveTab('providers')}
             >
-              OCR 供应商
+              供应商配置
             </button>
             <button
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all duration-150 ${
-                activeTab === 'text'
+                activeTab === 'restore'
                   ? 'bg-white text-indigo-600 shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
-              onClick={() => setActiveTab('text')}
+              onClick={() => setActiveTab('restore')}
             >
-              文本模型
+              还原设置
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {activeTab === 'ocr' ? (
-            <OcrTabContent
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {activeTab === 'providers' ? (
+            <ProvidersTabContent
               availableProviders={availableProviders}
               enabledProviderIds={enabledProviderIds}
               apiKeys={apiKeys}
               enabledModels={enabledModels}
-              restoreMode={restoreMode}
-              restoreFormat={restoreFormat}
+              textProviders={textProviders}
               onToggleProvider={toggleProvider}
               onUpdateApiKey={updateApiKey}
               onToggleModel={toggleModel}
-              onSetRestoreMode={setRestoreMode}
-              onSetRestoreFormat={setRestoreFormat}
-            />
-          ) : (
-            <TextTabContent
-              providers={textProviders}
-              onUpdateProvider={updateTextProvider}
-              onToggleModel={toggleTextModel}
+              onUpdateTextProvider={updateTextProvider}
+              onToggleTextModel={toggleTextModel}
               onAddProvider={addCustomProvider}
               onRemoveProvider={removeTextProvider}
               onAddModel={addModelToProvider}
               onUpdateModel={updateModelInProvider}
               onRemoveModel={removeModelFromProvider}
+            />
+          ) : (
+            <RestoreTabContent
+              restoreMode={restoreMode}
+              restoreFormat={restoreFormat}
+              onSetRestoreMode={setRestoreMode}
+              onSetRestoreFormat={setRestoreFormat}
             />
           )}
         </div>
@@ -329,164 +328,19 @@ const SettingsModal: React.FC = () => {
 };
 
 // ============================================================
-// OCR Tab
+// Unified Providers Tab (OCR + LLM in one table)
 // ============================================================
-interface OcrTabProps {
+interface ProvidersTabProps {
   availableProviders: Array<{ id: OcrProviderId; label: string }>;
   enabledProviderIds: OcrProviderId[];
   apiKeys: Record<OcrProviderId, string>;
   enabledModels: Record<OcrProviderId, string[]>;
-  restoreMode: RestoreMode;
-  restoreFormat: RestoreFormat;
+  textProviders: TextProviderLocal[];
   onToggleProvider: (id: OcrProviderId) => void;
   onUpdateApiKey: (id: OcrProviderId, key: string) => void;
   onToggleModel: (providerId: OcrProviderId, modelId: string) => void;
-  onSetRestoreMode: (mode: RestoreMode) => void;
-  onSetRestoreFormat: (format: RestoreFormat) => void;
-}
-
-const OcrTabContent: React.FC<OcrTabProps> = ({
-  availableProviders,
-  enabledProviderIds,
-  apiKeys,
-  enabledModels,
-  restoreMode,
-  restoreFormat,
-  onToggleProvider,
-  onUpdateApiKey,
-  onToggleModel,
-  onSetRestoreMode,
-  onSetRestoreFormat,
-}) => {
-  return (
-    <>
-      {/* Provider table */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-medium text-gray-700">OCR 供应商配置</h3>
-        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
-                <th className="px-3 py-2.5 text-left w-10">启用</th>
-                <th className="px-3 py-2.5 text-left w-28">供应商</th>
-                <th className="px-3 py-2.5 text-left">API Key</th>
-                <th className="px-3 py-2.5 text-left w-40">可用模型</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {availableProviders.map(provider => {
-                const isEnabled = enabledProviderIds.includes(provider.id);
-                const models = getAvailableOcrModels(provider.id);
-                const providerEnabledModels = enabledModels[provider.id] || [];
-
-                return (
-                  <tr
-                    key={provider.id}
-                    className={`${isEnabled ? 'bg-white' : 'bg-gray-50/50'} transition-colors`}
-                  >
-                    {/* Enable checkbox */}
-                    <td className="px-3 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isEnabled}
-                        onChange={() => onToggleProvider(provider.id)}
-                        className="checkbox-custom"
-                      />
-                    </td>
-
-                    {/* Provider name */}
-                    <td className="px-3 py-3">
-                      <span className={`font-medium ${isEnabled ? 'text-gray-800' : 'text-gray-400'}`}>
-                        {provider.label}
-                      </span>
-                    </td>
-
-                    {/* API Key */}
-                    <td className="px-3 py-3">
-                      <div className="relative">
-                        <Key size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="password"
-                          placeholder="sk-..."
-                          value={apiKeys[provider.id] || ''}
-                          onChange={e => onUpdateApiKey(provider.id, e.target.value)}
-                          disabled={!isEnabled}
-                          className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-300 transition-all duration-150"
-                        />
-                      </div>
-                    </td>
-
-                    {/* Models */}
-                    <td className="px-3 py-3">
-                      <div className="flex flex-col gap-1.5">
-                        {models.map(model => (
-                          <label
-                            key={model.modelId}
-                            className={`flex items-center gap-1.5 text-sm cursor-pointer ${
-                              isEnabled ? 'text-gray-700' : 'text-gray-400'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={providerEnabledModels.includes(model.modelId)}
-                              onChange={() => onToggleModel(provider.id, model.modelId)}
-                              disabled={!isEnabled}
-                              className="checkbox-custom"
-                            />
-                            {model.modelLabel}
-                          </label>
-                        ))}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Restore settings */}
-      <div className="space-y-3 pt-2">
-        <h3 className="text-sm font-medium text-gray-700">还原设置</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-gray-500 mb-1.5">还原模式</label>
-            <select
-              value={restoreMode}
-              onChange={e => onSetRestoreMode(e.target.value as RestoreMode)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-150"
-            >
-              <option value="default">默认</option>
-              <option value="prompt">Prompt</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-500 mb-1.5">还原格式</label>
-            <select
-              value={restoreFormat}
-              onChange={e => onSetRestoreFormat(e.target.value as RestoreFormat)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-150"
-            >
-              <option value="auto">Auto</option>
-              <option value="json">JSON</option>
-              <option value="html">HTML</option>
-              <option value="md">Markdown</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-// ============================================================
-// Text Models Tab
-// ============================================================
-interface TextTabProps {
-  providers: TextProviderLocal[];
-  onUpdateProvider: (id: string, updates: Partial<TextProviderLocal>) => void;
-  onToggleModel: (providerId: string, modelId: string) => void;
+  onUpdateTextProvider: (id: string, updates: Partial<TextProviderLocal>) => void;
+  onToggleTextModel: (providerId: string, modelId: string) => void;
   onAddProvider: () => void;
   onRemoveProvider: (id: string) => void;
   onAddModel: (providerId: string) => void;
@@ -494,156 +348,311 @@ interface TextTabProps {
   onRemoveModel: (providerId: string, modelId: string) => void;
 }
 
-const TextTabContent: React.FC<TextTabProps> = ({
-  providers,
-  onUpdateProvider,
+const ProvidersTabContent: React.FC<ProvidersTabProps> = ({
+  availableProviders,
+  enabledProviderIds,
+  apiKeys,
+  enabledModels,
+  textProviders,
+  onToggleProvider,
+  onUpdateApiKey,
   onToggleModel,
+  onUpdateTextProvider,
+  onToggleTextModel,
   onAddProvider,
   onRemoveProvider,
   onAddModel,
   onUpdateModel,
   onRemoveModel,
 }) => {
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [expandedProviders, setExpandedProviders] = useState<Set<string>>(new Set());
+
+  const toggleShowKey = (id: string) => {
+    setShowKeys(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleExpanded = (id: string) => {
+    setExpandedProviders(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
-    <>
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium text-gray-700">文本模型供应商</h3>
+    <div className="space-y-4">
+      {/* Unified Table */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left w-10">启用</th>
+              <th className="px-3 py-2.5 text-left w-32">供应商</th>
+              <th className="px-3 py-2.5 text-left w-16">类型</th>
+              <th className="px-3 py-2.5 text-left">Base URL</th>
+              <th className="px-3 py-2.5 text-left w-44">API Key</th>
+              <th className="px-3 py-2.5 text-center w-10">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {/* OCR Providers */}
+            {availableProviders.map(provider => {
+              const isEnabled = enabledProviderIds.includes(provider.id);
+              const models = getAvailableOcrModels(provider.id);
+              const providerEnabledModels = enabledModels[provider.id] || [];
+              const isExpanded = expandedProviders.has(provider.id);
 
-        {providers.map(provider => (
-          <div
-            key={provider.id}
-            className="border border-gray-200 rounded-lg overflow-hidden shadow-card hover:shadow-card-hover transition-shadow duration-200"
-          >
-            {/* Provider header */}
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={provider.enabled}
-                  onChange={() => onUpdateProvider(provider.id, { enabled: !provider.enabled })}
-                  className="checkbox-custom"
-                />
-                {provider.isDefault ? (
-                  <span className="text-sm font-medium text-gray-800">{provider.label}</span>
-                ) : (
-                  <input
-                    type="text"
-                    value={provider.label}
-                    onChange={e => onUpdateProvider(provider.id, { label: e.target.value })}
-                    className="text-sm font-medium text-gray-800 bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-400 focus:outline-none px-0 py-0"
-                    placeholder="Provider Name"
-                  />
-                )}
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 font-mono">
-                  {provider.type}
-                </span>
-              </div>
-              {!provider.isDefault && (
-                <button
-                  onClick={() => onRemoveProvider(provider.id)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition-all duration-150"
-                  title="删除供应商"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-
-            {/* Provider details */}
-            <div className="px-4 py-3 space-y-3">
-              {/* Base URL */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">Base URL</label>
-                <input
-                  type="text"
-                  value={provider.baseUrl}
-                  onChange={e => onUpdateProvider(provider.id, { baseUrl: e.target.value })}
-                  readOnly={provider.isDefault}
-                  placeholder="https://api.example.com/v1"
-                  className={`w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-150 ${
-                    provider.isDefault
-                      ? 'bg-gray-50 text-gray-500 cursor-default'
-                      : 'bg-white'
-                  }`}
-                />
-              </div>
-
-              {/* API Key */}
-              <div>
-                <label className="block text-xs text-gray-500 mb-1.5">API Key</label>
-                <div className="relative">
-                  <Key size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="password"
-                    value={provider.apiKey}
-                    onChange={e => onUpdateProvider(provider.id, { apiKey: e.target.value })}
-                    placeholder="sk-..."
-                    disabled={!provider.enabled}
-                    className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-300 transition-all duration-150"
-                  />
-                </div>
-              </div>
-
-              {/* Models */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-gray-500">模型</label>
-                  {!provider.isDefault && (
-                    <button
-                      onClick={() => onAddModel(provider.id)}
-                      className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
-                    >
-                      <Plus size={12} />
-                      添加模型
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  {provider.models.map(model => (
-                    <div key={model.id} className="flex items-center gap-2">
+              return (
+                <React.Fragment key={provider.id}>
+                  <tr className={`${isEnabled ? 'bg-white' : 'bg-gray-50/50'} hover:bg-gray-50/80 transition-colors`}>
+                    <td className="px-3 py-2.5 text-center">
                       <input
                         type="checkbox"
-                        checked={model.enabled}
-                        onChange={() => onToggleModel(provider.id, model.id)}
-                        disabled={!provider.enabled}
+                        checked={isEnabled}
+                        onChange={() => onToggleProvider(provider.id)}
                         className="checkbox-custom"
                       />
-                      {provider.isDefault ? (
-                        <span className="text-sm text-gray-700 flex-1">{model.label}</span>
-                      ) : (
-                        <>
-                          <input
-                            type="text"
-                            value={model.id}
-                            onChange={e => onUpdateModel(provider.id, model.id, { id: e.target.value })}
-                            placeholder="model-id"
-                            className="flex-1 text-sm px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 font-mono transition-all duration-150"
-                          />
-                          <input
-                            type="text"
-                            value={model.label}
-                            onChange={e => onUpdateModel(provider.id, model.id, { label: e.target.value })}
-                            placeholder="Display Name"
-                            className="w-28 text-sm px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all duration-150"
-                          />
-                          <button
-                            onClick={() => onRemoveModel(provider.id, model.id)}
-                            className="p-0.5 text-gray-400 hover:text-red-500 transition-all duration-150"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  ))}
-                  {provider.models.length === 0 && (
-                    <p className="text-sm text-gray-400 italic">暂无模型，请添加。</p>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`font-medium ${isEnabled ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {provider.label}
+                      </span>
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-medium">
+                        OCR
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-gray-500 text-xs">native</td>
+                    <td className="px-3 py-2.5 text-gray-400 text-xs">—</td>
+                    <td className="px-3 py-2.5">
+                      <div className="relative">
+                        <Key size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type={showKeys[provider.id] ? 'text' : 'password'}
+                          placeholder="sk-..."
+                          value={apiKeys[provider.id] || ''}
+                          onChange={e => onUpdateApiKey(provider.id, e.target.value)}
+                          disabled={!isEnabled}
+                          className="w-full pl-7 pr-7 py-1.5 text-xs rounded-lg border border-gray-200 bg-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-300 transition-all"
+                        />
+                        <button
+                          onClick={() => toggleShowKey(provider.id)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showKeys[provider.id] ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button
+                        onClick={() => toggleExpanded(provider.id)}
+                        className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                        title={isExpanded ? '收起模型' : '展开模型'}
+                      >
+                        <svg
+                          className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                  {/* OCR Models (expandable) */}
+                  {isExpanded && (
+                    <tr className="bg-gray-50/30">
+                      <td colSpan={6} className="px-3 py-2 pl-12">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          {models.map(model => (
+                            <label
+                              key={model.modelId}
+                              className={`flex items-center gap-1.5 text-xs cursor-pointer ${
+                                isEnabled ? 'text-gray-600' : 'text-gray-400'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={providerEnabledModels.includes(model.modelId)}
+                                onChange={() => onToggleModel(provider.id, model.modelId)}
+                                disabled={!isEnabled}
+                                className="checkbox-custom"
+                              />
+                              {model.modelLabel}
+                            </label>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
+                </React.Fragment>
+              );
+            })}
+
+            {/* LLM Providers */}
+            {textProviders.map(provider => {
+              const isExpanded = expandedProviders.has(provider.id);
+
+              return (
+                <React.Fragment key={provider.id}>
+                  <tr className={`${provider.enabled ? 'bg-white' : 'bg-gray-50/50'} hover:bg-gray-50/80 transition-colors`}>
+                    <td className="px-3 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        checked={provider.enabled}
+                        onChange={() => onUpdateTextProvider(provider.id, { enabled: !provider.enabled })}
+                        className="checkbox-custom"
+                      />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {provider.isDefault ? (
+                        <span className={`font-medium ${provider.enabled ? 'text-gray-800' : 'text-gray-400'}`}>
+                          {provider.label}
+                        </span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={provider.label}
+                          onChange={e => onUpdateTextProvider(provider.id, { label: e.target.value })}
+                          className={`text-sm font-medium bg-transparent border-b border-dashed border-gray-300 focus:border-indigo-400 focus:outline-none px-0 py-0 ${
+                            provider.enabled ? 'text-gray-800' : 'text-gray-400'
+                          }`}
+                          placeholder="Provider Name"
+                        />
+                      )}
+                      <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">
+                        LLM
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-mono">
+                        {provider.type === 'anthropic' ? 'anthropic' : 'openai'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {provider.isDefault ? (
+                        <span className="text-gray-400 text-xs truncate block max-w-[180px]" title={provider.baseUrl}>
+                          {provider.baseUrl}
+                        </span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={provider.baseUrl}
+                          onChange={e => onUpdateTextProvider(provider.id, { baseUrl: e.target.value })}
+                          placeholder="https://api.example.com/v1"
+                          className="w-full text-xs px-2 py-1.5 rounded border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="relative">
+                        <Key size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type={showKeys[provider.id] ? 'text' : 'password'}
+                          placeholder="sk-..."
+                          value={provider.apiKey}
+                          onChange={e => onUpdateTextProvider(provider.id, { apiKey: e.target.value })}
+                          disabled={!provider.enabled}
+                          className="w-full pl-7 pr-7 py-1.5 text-xs rounded-lg border border-gray-200 bg-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 disabled:bg-gray-50 disabled:text-gray-300 transition-all"
+                        />
+                        <button
+                          onClick={() => toggleShowKey(provider.id)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showKeys[provider.id] ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => toggleExpanded(provider.id)}
+                          className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                          title={isExpanded ? '收起模型' : '展开模型'}
+                        >
+                          <svg
+                            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {!provider.isDefault && (
+                          <button
+                            onClick={() => onRemoveProvider(provider.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="删除供应商"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                  {/* LLM Models (expandable) */}
+                  {isExpanded && (
+                    <tr className="bg-gray-50/30">
+                      <td colSpan={6} className="px-3 py-2 pl-12">
+                        <div className="space-y-1.5">
+                          {provider.models.map(model => (
+                            <div key={model.id} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={model.enabled}
+                                onChange={() => onToggleTextModel(provider.id, model.id)}
+                                disabled={!provider.enabled}
+                                className="checkbox-custom"
+                              />
+                              {provider.isDefault ? (
+                                <span className="text-xs text-gray-600">{model.label}</span>
+                              ) : (
+                                <>
+                                  <input
+                                    type="text"
+                                    value={model.id}
+                                    onChange={e => onUpdateModel(provider.id, model.id, { id: e.target.value })}
+                                    placeholder="model-id"
+                                    className="flex-1 text-xs px-2 py-1 rounded border border-gray-200 bg-white font-mono"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={model.label}
+                                    onChange={e => onUpdateModel(provider.id, model.id, { label: e.target.value })}
+                                    placeholder="Name"
+                                    className="w-24 text-xs px-2 py-1 rounded border border-gray-200 bg-white"
+                                  />
+                                  <button
+                                    onClick={() => onRemoveModel(provider.id, model.id)}
+                                    className="p-0.5 text-gray-400 hover:text-red-500"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                          {!provider.isDefault && (
+                            <button
+                              onClick={() => onAddModel(provider.id)}
+                              className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 mt-1"
+                            >
+                              <Plus size={12} />
+                              添加模型
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       {/* Add custom provider */}
@@ -652,9 +661,58 @@ const TextTabContent: React.FC<TextTabProps> = ({
         className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-600 border border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-600 transition-all duration-150"
       >
         <Plus size={16} />
-        添加自定义供应商 (OpenAI Compatible)
+        添加自定义 LLM 供应商 (OpenAI Compatible)
       </button>
-    </>
+    </div>
+  );
+};
+
+// ============================================================
+// Restore Settings Tab
+// ============================================================
+interface RestoreTabProps {
+  restoreMode: RestoreMode;
+  restoreFormat: RestoreFormat;
+  onSetRestoreMode: (mode: RestoreMode) => void;
+  onSetRestoreFormat: (format: RestoreFormat) => void;
+}
+
+const RestoreTabContent: React.FC<RestoreTabProps> = ({
+  restoreMode,
+  restoreFormat,
+  onSetRestoreMode,
+  onSetRestoreFormat,
+}) => {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-sm font-medium text-gray-700">还原设置</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-gray-500 mb-1.5">还原模式</label>
+          <select
+            value={restoreMode}
+            onChange={e => onSetRestoreMode(e.target.value as RestoreMode)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-150"
+          >
+            <option value="default">默认</option>
+            <option value="prompt">Prompt</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-500 mb-1.5">还原格式</label>
+          <select
+            value={restoreFormat}
+            onChange={e => onSetRestoreFormat(e.target.value as RestoreFormat)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all duration-150"
+          >
+            <option value="auto">Auto</option>
+            <option value="json">JSON</option>
+            <option value="html">HTML</option>
+            <option value="md">Markdown</option>
+          </select>
+        </div>
+      </div>
+    </div>
   );
 };
 
