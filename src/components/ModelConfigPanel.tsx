@@ -73,7 +73,7 @@ const ModelConfigPanel: React.FC<Props> = ({
   const [editingVar, setEditingVar] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
-  const [expandedSection, setExpandedSection] = React.useState<string | null>('params');
+  const [expandedSection, setExpandedSection] = React.useState<string | null>('models');
 
   const handleStartEdit = (varName: string) => {
     setEditingVar(varName);
