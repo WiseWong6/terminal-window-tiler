@@ -120,6 +120,10 @@ export interface OcrProviderConfig {
 export interface DefaultRestoreSettings {
   mode: RestoreMode;
   format: RestoreFormat;
+  prompt?: string;
+  llmModelId?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 // --- Text Model Config (for Prompt Playground) ---

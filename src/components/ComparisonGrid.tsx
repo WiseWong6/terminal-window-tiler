@@ -5,6 +5,7 @@ import { formatDuration } from '../utils/helpers';
 import type { Task, PageData, ProcessingStatus, RestoreFormat } from '../types';
 import PdfViewer from './PdfViewer';
 import MarkdownRenderer from './MarkdownRenderer';
+import AiRestoreSidebar from './AiRestoreSidebar';
 
 // ============================================================
 // Status Badge
@@ -456,9 +457,10 @@ const ComparisonGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Grid Container */}
-      <div className="flex-1 flex min-h-0 overflow-x-auto">
-        {/* Source Column - adaptive width based on model count */}
+      {/* Grid Container + Right Sidebar Wrapper */}
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex min-h-0 overflow-x-auto">
+          {/* Source Column - adaptive width based on model count */}
         {sourceFile && (
           <div className="flex-none shrink-0" style={{ width: sourceWidthPct, minWidth: modelCount >= 4 ? 280 : 320 }}>
             <SourceColumn
@@ -491,6 +493,10 @@ const ComparisonGrid: React.FC = () => {
             />
           </div>
         ))}
+        </div>
+
+        {/* AI Restore Right Sidebar */}
+        <AiRestoreSidebar />
       </div>
 
       {/* Synchronized Page Navigation */}

@@ -56,6 +56,10 @@ export interface WorkbenchState {
   // Restore
   restoreMode: RestoreMode;
   restoreFormat: RestoreFormat;
+  restorePrompt: string;
+  restoreLlmModelId: string;
+  restoreTemperature: number;
+  restoreMaxTokens: number;
 
   // Upload
   pendingUploads: UploadConfigItem[];
@@ -87,6 +91,10 @@ const initialState: WorkbenchState = {
   selectedModelKeys: [],
   restoreMode: getDefaultRestoreSettings().mode,
   restoreFormat: getDefaultRestoreSettings().format,
+  restorePrompt: getDefaultRestoreSettings().prompt || '',
+  restoreLlmModelId: getDefaultRestoreSettings().llmModelId || '',
+  restoreTemperature: getDefaultRestoreSettings().temperature ?? 0.7,
+  restoreMaxTokens: getDefaultRestoreSettings().maxTokens ?? 4096,
   pendingUploads: [],
 };
 
@@ -114,6 +122,10 @@ type Action =
   | { type: 'SET_SELECTED_MODEL_KEYS'; keys: string[] }
   | { type: 'SET_RESTORE_MODE'; mode: RestoreMode }
   | { type: 'SET_RESTORE_FORMAT'; format: RestoreFormat }
+  | { type: 'SET_RESTORE_PROMPT'; prompt: string }
+  | { type: 'SET_RESTORE_LLM_MODEL'; modelId: string }
+  | { type: 'SET_RESTORE_TEMPERATURE'; temperature: number }
+  | { type: 'SET_RESTORE_MAX_TOKENS'; maxTokens: number }
   | { type: 'SET_PENDING_UPLOADS'; items: UploadConfigItem[] }
   | { type: 'UPDATE_PENDING_UPLOAD'; id: string; updates: Partial<UploadConfigItem> }
   | { type: 'REMOVE_PENDING_UPLOAD'; id: string }
@@ -194,6 +206,14 @@ function reducer(state: WorkbenchState, action: Action): WorkbenchState {
       return { ...state, restoreMode: action.mode };
     case 'SET_RESTORE_FORMAT':
       return { ...state, restoreFormat: action.format };
+    case 'SET_RESTORE_PROMPT':
+      return { ...state, restorePrompt: action.prompt };
+    case 'SET_RESTORE_LLM_MODEL':
+      return { ...state, restoreLlmModelId: action.modelId };
+    case 'SET_RESTORE_TEMPERATURE':
+      return { ...state, restoreTemperature: action.temperature };
+    case 'SET_RESTORE_MAX_TOKENS':
+      return { ...state, restoreMaxTokens: action.maxTokens };
     case 'SET_PENDING_UPLOADS':
       return { ...state, pendingUploads: action.items };
     case 'UPDATE_PENDING_UPLOAD':

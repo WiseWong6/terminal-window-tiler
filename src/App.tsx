@@ -4,7 +4,7 @@ import { useStore } from './state/store';
 import Sidebar from './components/Sidebar';
 import ComparisonGrid from './components/ComparisonGrid';
 import LLMWorkspace from './components/LLMWorkspace';
-import SettingsModal from './components/SettingsModal';
+import SettingsView from './components/SettingsView';
 import UploadModal from './components/UploadModal';
 import StatusBar from './components/StatusBar';
 
@@ -134,7 +134,8 @@ const App: React.FC = () => {
       </main>
 
       {/* Modals */}
-      {state.settingsOpen && <SettingsModal />}
+      {/* Modals & Overlays */}
+      {state.settingsOpen && <SettingsView />}
       {state.uploadOpen && <UploadModal />}
     </div>
   );

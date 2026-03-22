@@ -32,6 +32,10 @@ export interface OcrProviderConfig {
 export interface DefaultRestoreSettings {
   mode: RestoreMode;
   format: RestoreFormat;
+  prompt?: string;
+  llmModelId?: string;
+  temperature?: number;
+  maxTokens?: number;
 }
 
 const AVAILABLE_PROVIDERS: OcrProviderConfig[] = [
@@ -190,7 +194,7 @@ export const getDefaultRestoreSettings = (): DefaultRestoreSettings => {
   try {
     const stored = localStorage.getItem(RESTORE_SETTINGS_STORAGE_KEY);
     if (!stored) {
-      return { mode: 'default', format: 'auto' };
+      return { mode: 'default', format: 'auto', prompt: '', llmModelId: '', temperature: 0.7, maxTokens: 4096 };
     }
 
     const parsed = JSON.parse(stored) as Partial<DefaultRestoreSettings>;
@@ -203,9 +207,13 @@ export const getDefaultRestoreSettings = (): DefaultRestoreSettings => {
         parsed.format === 'auto'
           ? parsed.format
           : 'auto',
+      prompt: parsed.prompt || '',
+      llmModelId: parsed.llmModelId || '',
+      temperature: typeof parsed.temperature === 'number' ? parsed.temperature : 0.7,
+      maxTokens: typeof parsed.maxTokens === 'number' ? parsed.maxTokens : 4096,
     };
   } catch {
-    return { mode: 'default', format: 'auto' };
+    return { mode: 'default', format: 'auto', prompt: '', llmModelId: '', temperature: 0.7, maxTokens: 4096 };
   }
 };
 
