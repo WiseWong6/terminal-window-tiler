@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { Upload, Settings, Menu } from 'lucide-react';
 import { useStore } from './state/store';
 import Sidebar from './components/Sidebar';
@@ -11,6 +11,23 @@ import StatusBar from './components/StatusBar';
 const App: React.FC = () => {
   const { state, dispatch } = useStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Synchronize Settings View with URL Hash to support refreshing
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      const isSettings = hash === '#settings';
+      if (isSettings !== state.settingsOpen) {
+        dispatch({ type: 'SET_SETTINGS_OPEN', open: isSettings });
+      }
+    };
+    
+    // Initial check on mount
+    handleHashChange();
+    
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [dispatch, state.settingsOpen]);
 
   const handleUploadClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -92,7 +109,7 @@ const App: React.FC = () => {
               </button>
             )}
             <button
-              onClick={() => dispatch({ type: 'SET_SETTINGS_OPEN', open: true })}
+              onClick={() => window.location.hash = 'settings'}
               className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-all duration-150"
             >
               <Settings size={18} />
@@ -117,7 +134,7 @@ const App: React.FC = () => {
                   支持 PDF、PNG、JPG 文件，可同时选择多个 OCR 模型进行对比
                 </p>
                 <button
-                  onClick={() => dispatch({ type: 'SET_SETTINGS_OPEN', open: true })}
+                  onClick={() => window.location.hash = 'settings'}
                   className="mt-5 px-4 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-all duration-150 active:scale-[0.97]"
                 >
                   配置 API Key

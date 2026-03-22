@@ -109,7 +109,7 @@ const SettingsView: React.FC = () => {
     dispatch({ type: 'SET_RESTORE_TOP_P', topP: restoreTopP });
     dispatch({ type: 'SET_RESTORE_TIMEOUT', timeout: restoreTimeout });
     dispatch({ type: 'SET_RESTORE_ENABLE_THINKING', enabled: restoreEnableThinking });
-    dispatch({ type: 'SET_SETTINGS_OPEN', open: false });
+    window.location.hash = ''; // Using hash routing to close page
   }, [dispatch, restoreMode, restoreFormat, restoreSystemPrompt, restorePrompt,
     restoreLlmModelId, restoreTemperature, restoreMaxTokens, restoreTopP, restoreTimeout, restoreEnableThinking]);
 
