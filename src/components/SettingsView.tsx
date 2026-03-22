@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft, Key, Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight,
   Settings, CheckCircle2, Database, Wand2, FileBox, Brain, Layers, Zap,
-  Cpu, Eye as EyeIcon, Wrench,
+  Cpu, Eye as EyeIcon, Wrench, Copy,
 } from 'lucide-react';
 import { useStore } from '../state/store';
 import {
@@ -296,6 +296,17 @@ const ProvidersTab: React.FC<ProvidersTabProps> = ({
               onAddModel={mdl => onAddModel(selected.id, mdl)}
               onUpdateModel={(mid, u) => onUpdateModel(selected.id, mid, u)}
               onRemoveModel={mid => onRemoveModel(selected.id, mid)}
+              onDuplicateModel={mid => {
+                const model = selected.models.find(m => m.id === mid);
+                if (!model) return;
+                const newModel: UnifiedModel = {
+                  ...model,
+                  id: `${model.id}-copy`,
+                  label: `${model.label} (复制)`,
+                  enabled: true,
+                };
+                onAddModel(selected.id, newModel);
+              }}
             />
           ) : (
             <div className="h-40 flex items-center justify-center text-slate-300 text-sm">从左侧选择供应商</div>
@@ -371,7 +382,8 @@ const ProviderDetail: React.FC<{
   onAddModel: (mdl: UnifiedModel) => void;
   onUpdateModel: (mid: string, u: Partial<UnifiedModel>) => void;
   onRemoveModel: (mid: string) => void;
-}> = ({ provider, onToggle, onUpdateField, onRemove, onToggleModel, onAddModel, onUpdateModel, onRemoveModel }) => {
+  onDuplicateModel: (mid: string) => void;
+}> = ({ provider, onToggle, onUpdateField, onRemove, onToggleModel, onAddModel, onUpdateModel, onRemoveModel, onDuplicateModel }) => {
   const [showKey, setShowKey] = useState(false);
   const [addingModel, setAddingModel] = useState(false);
   const [newId, setNewId] = useState('');
@@ -456,19 +468,19 @@ const ProviderDetail: React.FC<{
           </span>
         </div>
         <div className="overflow-x-auto min-w-full">
-          <table className="w-full text-left table-fixed min-w-[900px]">
+          <table className="w-full text-left table-fixed min-w-[800px]">
             <thead>
               <tr className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                <th className="w-10 px-3 py-2.5 text-center">启用</th>
-                <th className="w-56 px-3 py-2.5">Model ID</th>
-                <th className="w-24 px-3 py-2.5">类型</th>
-                <th className="w-40 px-3 py-2.5">显示名称</th>
-                <th className="w-12 px-2 py-2.5 text-center" title="深度思考">思考</th>
-                <th className="w-12 px-2 py-2.5 text-center" title="视觉处理">视觉</th>
-                <th className="w-12 px-2 py-2.5 text-center" title="工具调用">工具</th>
-                <th className="w-24 px-3 py-2.5">最大输出</th>
-                <th className="w-24 px-3 py-2.5">上下文</th>
-                <th className="w-10 px-3 py-2.5 text-center">操作</th>
+                <th className="w-[8%] px-2 py-2.5 text-center">启用</th>
+                <th className="w-[20%] px-2 py-2.5 text-center">Model ID</th>
+                <th className="w-[10%] px-2 py-2.5 text-center">类型</th>
+                <th className="w-[18%] px-2 py-2.5 text-center">显示名称</th>
+                <th className="w-[10%] px-2 py-2.5 text-center" title="深度思考">思考</th>
+                <th className="w-[10%] px-2 py-2.5 text-center" title="视觉处理">视觉</th>
+                <th className="w-[10%] px-2 py-2.5 text-center" title="工具调用">工具</th>
+                <th className="w-[9%] px-2 py-2.5 text-center">最大输出</th>
+                <th className="w-[10%] px-2 py-2.5 text-center">上下文</th>
+                <th className="w-[8%] px-2 py-2.5 text-center">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -479,7 +491,7 @@ const ProviderDetail: React.FC<{
                   onToggle={() => onToggleModel(model.id)}
                   onUpdate={u => onUpdateModel(model.id, u)}
                   onRemove={() => onRemoveModel(model.id)}
-                  readonly={provider.isDefault}
+                  onDuplicate={() => onDuplicateModel(model.id)}
                 />
               ))}
             </tbody>
@@ -547,103 +559,114 @@ const ModelTableRow: React.FC<{
   onToggle: () => void;
   onUpdate: (u: Partial<UnifiedModel>) => void;
   onRemove: () => void;
-  readonly: boolean;
-}> = ({ model, onToggle, onUpdate, onRemove, readonly }) => {
+  onDuplicate: () => void;
+}> = ({ model, onToggle, onUpdate, onRemove, onDuplicate }) => {
   return (
     <tr className={`transition-all hover:bg-slate-50/70 group ${model.enabled ? '' : 'opacity-60 bg-slate-50/30'}`}>
-      <td className="px-3 py-2.5 text-center">
+      <td className="px-2 py-2.5 text-center">
         <input type="checkbox" checked={model.enabled} onChange={onToggle}
           className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded cursor-pointer" />
       </td>
       
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <input
           type="text"
           value={model.id}
-          onChange={e => !readonly && onUpdate({ id: e.target.value })}
-          readOnly={readonly}
-          className={`w-full text-xs font-mono text-slate-800 bg-transparent border-b border-transparent focus:outline-none transition-all ${
-            readonly ? 'cursor-default' : 'hover:border-slate-200 focus:border-indigo-400 cursor-text'
-          }`}
+          onChange={e => onUpdate({ id: e.target.value })}
+          className="w-full text-xs font-mono text-slate-800 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 focus:outline-none transition-all cursor-text text-center"
           title={model.id}
         />
       </td>
 
-      <td className="px-3 py-2.5">
-        <div className="relative">
+      <td className="px-2 py-2.5">
+        <div className="relative flex justify-center">
           <select 
             value={model.capabilities} 
-            onChange={e => !readonly && onUpdate({ capabilities: e.target.value as ModelCapability })}
-            disabled={readonly}
-            className={`w-full text-[10px] font-bold uppercase pl-1.5 pr-4 py-0.5 rounded appearance-none border-transparent focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all ${
-              model.capabilities === 'llm' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'
-            } ${readonly ? 'cursor-default' : 'cursor-pointer hover:bg-slate-100 hover:text-slate-700 hover:border-slate-200 border'}`}
+            onChange={e => onUpdate({ capabilities: e.target.value as ModelCapability })}
+            className={`w-full text-[10px] font-bold uppercase px-2 py-0.5 rounded appearance-none border cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/30 transition-all hover:border-slate-200 text-center ${
+              model.capabilities === 'llm' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'
+            }`}
           >
             <option value="llm">LLM</option>
             <option value="ocr">OCR</option>
           </select>
-          <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center">
-            <ChevronDown size={10} className={model.capabilities === 'llm' ? 'text-purple-400' : 'text-blue-400'} />
-          </div>
         </div>
       </td>
 
-      <td className="px-3 py-2.5">
+      <td className="px-2 py-2.5">
         <input
           type="text"
           value={model.label}
-          onChange={e => !readonly && onUpdate({ label: e.target.value })}
-          readOnly={readonly}
-          className={`w-full text-xs font-semibold text-slate-600 bg-transparent border-b border-transparent focus:outline-none transition-all ${
-            readonly ? 'cursor-default' : 'hover:border-slate-200 focus:border-indigo-400 cursor-text'
-          }`}
+          onChange={e => onUpdate({ label: e.target.value })}
+          className="w-full text-xs font-semibold text-slate-600 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 focus:outline-none transition-all cursor-text text-center"
         />
       </td>
 
       <td className="px-2 py-2.5 text-center">
-        <button onClick={() => !readonly && onUpdate({ thinking: !model.thinking })} disabled={readonly}
-          className={`p-1 rounded-md transition-colors ${model.thinking ? 'bg-orange-100 text-orange-600' : 'text-slate-300 hover:bg-slate-100 focus:outline-none'}`}>
-          <Brain size={12} />
+        <button 
+          onClick={() => onUpdate({ thinking: !model.thinking })}
+          className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors ${model.thinking ? 'bg-orange-500' : 'bg-slate-200'}`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${model.thinking ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
       </td>
 
       <td className="px-2 py-2.5 text-center">
-        <button onClick={() => !readonly && onUpdate({ vision: !model.vision })} disabled={readonly}
-          className={`p-1 rounded-md transition-colors ${model.vision ? 'bg-sky-100 text-sky-600' : 'text-slate-300 hover:bg-slate-100 focus:outline-none'}`}>
-          <EyeIcon size={12} />
+        <button 
+          onClick={() => onUpdate({ vision: !model.vision })}
+          className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors ${model.vision ? 'bg-sky-500' : 'bg-slate-200'}`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${model.vision ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
       </td>
 
       <td className="px-2 py-2.5 text-center">
-        <button onClick={() => !readonly && onUpdate({ tools: !model.tools })} disabled={readonly}
-          className={`p-1 rounded-md transition-colors ${model.tools ? 'bg-teal-100 text-teal-600' : 'text-slate-300 hover:bg-slate-100 focus:outline-none'}`}>
-          <Wrench size={12} />
+        <button 
+          onClick={() => onUpdate({ tools: !model.tools })}
+          className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors ${model.tools ? 'bg-teal-500' : 'bg-slate-200'}`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${model.tools ? 'translate-x-5' : 'translate-x-0.5'}`} />
         </button>
       </td>
 
-      <td className="px-3 py-2.5">
-        <input type="number" min={256} step={256} value={model.maxOutputTokens ?? 8192}
-          onChange={e => !readonly && onUpdate({ maxOutputTokens: parseInt(e.target.value) || 8192 })}
-          readOnly={readonly}
-          className="w-16 text-xs px-1.5 py-1 border border-slate-200 rounded bg-white focus:bg-white focus:ring-1 focus:ring-indigo-500/30 font-mono transition-all" />
+      <td className="px-2 py-2.5">
+        <input 
+          type="text" 
+          value={model.maxOutputTokens ?? 8192}
+          onChange={e => onUpdate({ maxOutputTokens: parseInt(e.target.value) || 8192 })}
+          className="w-full text-xs px-1.5 py-1 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 focus:outline-none font-mono text-center cursor-text transition-all" 
+        />
       </td>
 
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-1">
-          <input type="number" min={4096} step={4096} value={((model.contextWindow ?? 128000) / 1000).toFixed(0)}
-            onChange={e => !readonly && onUpdate({ contextWindow: (parseInt(e.target.value) || 128) * 1000 })}
-            readOnly={readonly}
-            className="w-12 text-xs px-1.5 py-1 border border-slate-200 rounded bg-white focus:bg-white focus:ring-1 focus:ring-indigo-500/30 font-mono transition-all text-right" />
+      <td className="px-2 py-2.5">
+        <div className="flex items-center justify-center gap-1">
+          <input 
+            type="text" 
+            value={((model.contextWindow ?? 128000) / 1000).toFixed(0)}
+            onChange={e => onUpdate({ contextWindow: (parseInt(e.target.value) || 128) * 1000 })}
+            className="w-12 text-xs px-1.5 py-1 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-indigo-400 focus:outline-none font-mono text-center cursor-text transition-all" 
+          />
           <span className="text-[10px] text-slate-400 font-bold">K</span>
         </div>
       </td>
 
-      <td className="px-3 py-2.5 text-center">
-        {!readonly && (
-          <button onClick={onRemove} className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all opacity-0 group-hover:opacity-100">
+      <td className="px-2 py-2.5 text-center">
+        <div className="flex items-center justify-center gap-1">
+          <button 
+            onClick={onDuplicate} 
+            title="复制模型"
+            className="p-1 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded transition-all"
+          >
+            <Copy size={13} />
+          </button>
+          <button 
+            onClick={onRemove} 
+            title="删除模型"
+            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+          >
             <Trash2 size={13} />
           </button>
-        )}
+        </div>
       </td>
     </tr>
   );
