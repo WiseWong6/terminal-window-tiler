@@ -168,7 +168,7 @@ const ModelConfigPanel: React.FC<Props> = ({
   );
 
   return (
-    <div className="w-[24%] min-w-[240px] max-w-[320px] flex-none border-r border-slate-200 flex flex-col bg-white overflow-hidden">
+    <div className="w-[30%] flex-none border-r border-slate-200 flex flex-col bg-white overflow-hidden">
       {/* Header */}
       <div className="flex-none px-4 py-3 border-b border-slate-100 bg-gradient-to-r from-white to-slate-50/50">
         <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">

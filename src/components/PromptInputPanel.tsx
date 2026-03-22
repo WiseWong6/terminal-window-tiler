@@ -17,7 +17,7 @@ const PromptInputPanel: React.FC<Props> = ({
   onUserPromptChange,
 }) => {
   return (
-    <div className="w-[28%] min-w-[280px] max-w-[360px] flex-none border-r border-slate-200 flex flex-col bg-gradient-to-b from-slate-50/50 to-white overflow-hidden">
+    <div className="w-[30%] flex-none border-r border-slate-200 flex flex-col bg-gradient-to-b from-slate-50/50 to-white overflow-hidden">
       {/* Header */}
       <div className="flex-none px-4 py-3 border-b border-slate-100 bg-white">
         <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
