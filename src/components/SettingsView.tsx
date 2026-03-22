@@ -271,7 +271,7 @@ const ProvidersTab: React.FC<ProvidersTabProps> = ({
                 {!p.isDefault && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); onRemoveProvider(p.id); if (selectedId === p.id) setSelectedId(null); }}
-                    className="absolute top-3 right-2 p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded opacity-0 hover:opacity-100 group-hover:opacity-100 transition-all"
+                    className="absolute top-3 right-2 p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
                     title="删除供应商"
                   >
                     <Trash2 size={12} />
